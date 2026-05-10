@@ -290,6 +290,8 @@ textarea { resize: vertical; min-height: 60px; font-family: inherit; }
 
 #btn-transcribe { margin-top: 14px; }
 
+[hidden] { display: none !important; }
+
 .progress {
     display: flex;
     align-items: center;

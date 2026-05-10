@@ -12,6 +12,23 @@ if (Test-Path "zapis.spec") { Remove-Item -Force "zapis.spec" }
 Write-Host "Installing dependencies..." -ForegroundColor Yellow
 pip install -r requirements.txt
 
+# requirements.txt specifies gigaam from GitHub, but pip may skip reinstall
+# if a PyPI version (without v3) is already in the venv. Force the GitHub build,
+# and install its full dep tree (soundfile, etc).
+Write-Host "Ensuring GigaAM v3 (GitHub build) is installed..." -ForegroundColor Yellow
+pip install --force-reinstall git+https://github.com/salute-developers/GigaAM.git
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: pip install for gigaam failed. Build aborted." -ForegroundColor Red
+    exit 1
+}
+
+# Sanity check: v3_ctc must be available.
+python -c "import gigaam, sys; sys.exit(0 if 'v3_ctc' in getattr(gigaam, '_MODEL_NAMES', []) else 1)"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: installed gigaam does not expose v3_ctc. Build aborted." -ForegroundColor Red
+    exit 1
+}
+
 # PyInstaller spec
 $specContent = @"
 # -*- mode: python ; coding: utf-8 -*-
@@ -27,9 +44,15 @@ a = Analysis(
         ('settings.json', '.'),
     ],
     hiddenimports=[
-        # GigaAM stack
+        # GigaAM stack (v3 from GitHub depends on soundfile + onnxruntime)
         'gigaam',
         'gigaam.decoding',
+        'gigaam.model',
+        'gigaam.utils',
+        'gigaam.preprocess',
+        'gigaam.onnx_utils',
+        'soundfile',
+        'onnxruntime',
         'pyctcdecode',
         'pyctcdecode.constants',
         'pyctcdecode.language_model',
@@ -98,8 +121,8 @@ Copy-Item "settings.json" -Destination "dist" -ErrorAction SilentlyContinue
 
 Write-Host "`nBuild complete!" -ForegroundColor Green
 Write-Host "Output: dist\Zapis.exe" -ForegroundColor Cyan
-Write-Host "`nNote: модели GigaAM, KenLM и Whisper загружаются в кеш HuggingFace при первом запуске," -ForegroundColor Yellow
-Write-Host "      они НЕ упакованы в exe и не должны там находиться." -ForegroundColor Yellow
+Write-Host "`nNote: GigaAM, KenLM and Whisper weights are downloaded to the HuggingFace cache" -ForegroundColor Yellow
+Write-Host "      on first launch -- they are NOT bundled into the exe (and should not be)." -ForegroundColor Yellow
 Write-Host "`nFor distribution, copy:" -ForegroundColor Yellow
 Write-Host "  - dist\Zapis.exe" -ForegroundColor White
 Write-Host "  - dist\settings.json" -ForegroundColor White
