@@ -1,0 +1,26 @@
+# Virtual environment
+venv311/
+
+# Build artifacts
+build/
+dist/
+*.spec
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Logs
+*.log
+
+# Screenshots
+Screenshot*
+
+# IDE
+.vs/
+.idea/
+*.swp
+
+# OS
+Thumbs.db
+Desktop.ini

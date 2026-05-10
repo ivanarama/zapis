@@ -1,0 +1,29 @@
+{
+  "app": {
+    "title": "Записная книжка",
+    "port": 8001,
+    "theme": "dark"
+  },
+  "asr": {
+    "engine": "gigaam",
+    "language": "ru",
+    "gigaam": {
+      "version": "v3"
+    },
+    "whisper": {
+      "model": "small"
+    }
+  },
+  "llm": {
+    "temperature": 0.3,
+    "max_tokens": 4096,
+    "profiles": []
+  },
+  "prompts": {
+    "youtube_description": { "system": "", "user_template": "" },
+    "youtube_timecodes":   { "system": "", "user_template": "" },
+    "telegram_post":       { "system": "", "user_template": "" },
+    "article":             { "system": "", "user_template": "" },
+    "custom_system": ""
+  }
+}

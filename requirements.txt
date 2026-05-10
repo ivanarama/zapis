@@ -1,0 +1,28 @@
+fastapi>=0.115.0
+uvicorn>=0.30.0
+httpx>=0.27.0
+python-multipart>=0.0.9
+pydantic>=2.10.0
+pywebview>=5.0.0
+pyinstaller>=6.0.0
+
+# ASR — GigaAM v3 (Source of truth: C:/Projects/gigaam_tone)
+# ВАЖНО: PyPI-версия gigaam поддерживает только v1/v2. Для v3 ставить с GitHub:
+#   pip install git+https://github.com/salute-developers/GigaAM.git
+# (как в C:/Projects/gigaam_tone/Dockerfile, строка 15)
+gigaam @ git+https://github.com/salute-developers/GigaAM.git
+pyctcdecode
+torch
+numpy
+scipy
+sentencepiece
+pygtrie
+huggingface-hub
+
+# ASR — faster-whisper для не-русских языков
+faster-whisper>=1.2.0
+
+# LLM — OpenAI-совместимый клиент с асинхронным стримингом
+openai>=1.50.0
+# anthropic — опционально, нужен только при выборе провайдера "anthropic" в профиле
+anthropic>=0.40.0
