@@ -33,13 +33,12 @@ jobs:
       - name: Upgrade pip
         run: python -m pip install --upgrade pip
 
-      - name: Install Python dependencies
-        run: pip install -r requirements.txt
-
-      # KenLM has no Windows wheel on PyPI — it is compiled from source here.
-      # Required by pyctcdecode for GigaAM v3 CTC + LM decoding; pulled in
-      # explicitly because it is an optional import in pyctcdecode and is not
-      # listed in requirements.txt (so local builds don't fail without MSVC).
+      # KenLM has no Windows wheel on PyPI — it is compiled from source here
+      # (windows-latest has the MSVC toolchain). Required by pyctcdecode for
+      # GigaAM v3 CTC + LM decoding; installed here rather than via
+      # requirements.txt so a local build.ps1 without MSVC doesn't choke on it.
+      # build.ps1 (below) does the rest: requirements.txt, pyctcdecode --no-deps,
+      # GigaAM from GitHub, then PyInstaller.
       - name: Build & install kenlm
         run: pip install kenlm
 

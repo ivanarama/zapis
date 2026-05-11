@@ -14,7 +14,10 @@ pyinstaller==6.20.0
 # Пин на конкретный коммит — апстрим иногда ломает API (см. _MODEL_HASHES/_MODEL_NAMES).
 # build.ps1 делает force-reinstall этого же коммита, чтобы перебить возможную PyPI-версию.
 gigaam @ git+https://github.com/salute-developers/GigaAM.git@6e4b027c6fb554e09e8b9059b757a175295ab879
-pyctcdecode==0.5.0
+# pyctcdecode 0.5.0 жёстко требует numpy<2.0.0, а gigaam — numpy==2.*; вместе не
+# резолвятся. На деле pyctcdecode прекрасно работает с numpy 2.x — поэтому ставим
+# его отдельно в build.ps1 c --no-deps (его единственная реальная зависимость —
+# pygtrie ниже).
 torch==2.5.1
 numpy==2.4.4
 scipy==1.17.1

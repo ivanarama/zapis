@@ -11,6 +11,20 @@ if (Test-Path "zapis.spec") { Remove-Item -Force "zapis.spec" }
 
 Write-Host "Installing dependencies..." -ForegroundColor Yellow
 pip install -r requirements.txt
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: pip install -r requirements.txt failed. Build aborted." -ForegroundColor Red
+    exit 1
+}
+
+# pyctcdecode 0.5.0 pins numpy<2.0.0, which conflicts with gigaam's numpy==2.*.
+# It actually runs fine on numpy 2.x, so install it without its (stale) deps;
+# pygtrie (its only real dependency) is already pinned in requirements.txt.
+Write-Host "Installing pyctcdecode (no-deps)..." -ForegroundColor Yellow
+pip install --no-deps pyctcdecode==0.5.0
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: pip install for pyctcdecode failed. Build aborted." -ForegroundColor Red
+    exit 1
+}
 
 # requirements.txt specifies gigaam from GitHub, but pip may skip reinstall
 # if a PyPI version (without v3) is already in the venv. Force the GitHub build
