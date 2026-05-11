@@ -260,7 +260,7 @@ class CTCDecoderWithLM:
         log_probs = self.ctc_model.ctc_log_probs([waveform])[0]
         log_probs = log_probs.clip(np.log(1e-15), 0)
 
-        beams = self.decoder._decode_logits(
+        raw_beams = self.decoder._decode_logits(
             log_probs,
             beam_width=self.beam_width,
             beam_prune_logp=self.beam_prune_logp,
@@ -269,14 +269,42 @@ class CTCDecoderWithLM:
             hotword_scorer=HotwordScorer.build_scorer(None, weight=10.0),
             lm_start_state=None,
         )
-        beams = [OutputBeam(*b) for b in beams]
+        if not raw_beams:
+            return []
+
+        beams = []
+        for b in raw_beams:
+            if b is None:
+                continue
+            try:
+                beams.append(OutputBeam(*b))
+            except TypeError:
+                log.warning("Skipping beam with unexpected structure: %s", type(b))
+
+        if not beams:
+            return []
+
         top = max(beams, key=lambda b: b.lm_score)
 
+        if not top.text_frames:
+            # Нет word-level таймстемпов — возвращаем весь текст как один сегмент
+            text = top.text.strip() if top.text else ""
+            if not text:
+                return []
+            dur = len(waveform) / SAMPLE_RATE
+            return [{"text": text, "start": 0.0, "end": round(dur, 3)}]
+
         tick = self.ctc_model.tick_size
-        return [
-            {"text": word, "start": round(s * tick, 3), "end": round(e * tick, 3)}
-            for word, (s, e) in top.text_frames
-        ]
+        words = []
+        for frame in top.text_frames:
+            if frame is None:
+                continue
+            try:
+                word, (s, e) = frame
+            except (TypeError, ValueError):
+                continue
+            words.append({"text": word, "start": round(s * tick, 3), "end": round(e * tick, 3)})
+        return words
 
 
 def _check_v3_available(version: str) -> bool:
