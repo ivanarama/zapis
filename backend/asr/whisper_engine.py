@@ -3,19 +3,12 @@
 from __future__ import annotations
 
 import logging
-import os
-import subprocess
-import tempfile
 from typing import Optional
 
-import numpy as np
-
 from ..formats import format_result
-from .base import EngineStatus, TranscribeResult
+from .base import EngineStatus, SAMPLE_RATE, TranscribeResult, decode_audio_bytes
 
 log = logging.getLogger("zapis.asr.whisper")
-
-SAMPLE_RATE = 16_000
 
 # Модели можно подменить из settings.json: asr.whisper.model
 DEFAULT_MODEL = "small"
@@ -25,27 +18,6 @@ WHISPER_LANGUAGES = [
     "ja", "ko", "zh", "ar", "uk", "cs", "ro", "el", "sv", "fi", "no", "da",
     "hu", "id", "vi", "th", "he", "hi",
 ]
-
-
-def _load_audio(file_bytes: bytes, ext: str) -> np.ndarray:
-    """Декодирует произвольный аудио/видео в float32 mono 16k через ffmpeg."""
-    with tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False) as f:
-        f.write(file_bytes)
-        tmp_path = f.name
-    try:
-        cmd = [
-            "ffmpeg", "-nostdin", "-threads", "0",
-            "-i", tmp_path,
-            "-f", "s16le", "-ac", "1", "-acodec", "pcm_s16le",
-            "-ar", str(SAMPLE_RATE), "-",
-        ]
-        out = subprocess.run(cmd, capture_output=True, check=True).stdout
-        return np.frombuffer(out, np.int16).astype(np.float32) / 32768.0
-    finally:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
 
 
 class WhisperEngine:
@@ -134,7 +106,7 @@ class WhisperEngine:
             raise RuntimeError("Whisper не инициализирован")
 
         ext = filename.rsplit(".", maxsplit=1)[-1] if "." in filename else "wav"
-        audio = _load_audio(file_bytes, ext)
+        audio = decode_audio_bytes(file_bytes, ext)
 
         lang_arg = None if language in (None, "", "auto") else language
         segments_iter, info = self._model.transcribe(

@@ -9,9 +9,7 @@ from __future__ import annotations
 
 import gc
 import logging
-import os
 import subprocess
-import tempfile
 from dataclasses import dataclass
 from itertools import groupby
 from typing import Optional
@@ -20,11 +18,15 @@ import numpy as np
 import torch
 
 from ..formats import format_result
-from .base import EngineStatus, TranscribeResult
+from .base import (
+    EngineStatus,
+    SAMPLE_RATE,
+    TranscribeResult,
+    decode_audio_bytes,
+)
 
 log = logging.getLogger("zapis.asr.gigaam")
 
-SAMPLE_RATE = 16_000
 GIGAAM_FREQ = 25
 
 
@@ -35,30 +37,6 @@ def _pairwise(iterable):
         b = next(it, None)
         yield a, b
         a = b
-
-
-def load_audio(file_path: str, sr: int = SAMPLE_RATE) -> np.ndarray:
-    cmd = [
-        "ffmpeg", "-nostdin", "-threads", "0",
-        "-i", file_path,
-        "-f", "s16le", "-ac", "1", "-acodec", "pcm_s16le",
-        "-ar", str(sr), "-",
-    ]
-    out = subprocess.run(cmd, capture_output=True, check=True).stdout
-    return np.frombuffer(out, np.int16).astype(np.float32) / 32768.0
-
-
-def load_audio_from_bytes(data: bytes, ext: str) -> np.ndarray:
-    with tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False) as f:
-        f.write(data)
-        tmp_path = f.name
-    try:
-        return load_audio(tmp_path)
-    finally:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
 
 
 @dataclass(frozen=True)
@@ -302,12 +280,19 @@ class CTCDecoderWithLM:
 
 
 def _check_v3_available(version: str) -> bool:
-    """Проверяет, поддерживает ли установленный gigaam нужную версию модели."""
+    """Проверяет, поддерживает ли установленный gigaam нужную версию модели.
+
+    Старый PyPI-gigaam держал список в `_MODEL_NAMES` (list), новый GitHub-gigaam
+    переехал на `_MODEL_HASHES` (dict). Проверяем оба, чтобы поддержать обе ветки.
+    """
     if version != "v3":
         return True
     import gigaam
     model_name = f"{version}_ctc"
-    return model_name in getattr(gigaam, "_MODEL_NAMES", {})
+    names = getattr(gigaam, "_MODEL_HASHES", None)
+    if names is None:
+        names = getattr(gigaam, "_MODEL_NAMES", ())
+    return model_name in names
 
 
 class GigaamEngine:
@@ -389,7 +374,7 @@ class GigaamEngine:
             raise RuntimeError("Модель GigaAM ещё загружается")
 
         ext = filename.rsplit(".", maxsplit=1)[-1] if "." in filename else "wav"
-        audio = load_audio_from_bytes(file_bytes, ext)
+        audio = decode_audio_bytes(file_bytes, ext)
         words = self._decoder.timed_transcribe(audio)
         return format_result(words, language="ru")
 
