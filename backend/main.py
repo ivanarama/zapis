@@ -56,6 +56,7 @@ async def _startup():
     Whisper — наоборот, ленивая загрузка при первом transcribe()."""
     settings = get_settings()
     asr_factory.set_active_engine(settings.asr.engine)
+    asr_factory.set_device(settings.asr.device)
 
     def _bg_init():
         try:

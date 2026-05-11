@@ -91,6 +91,7 @@ class WhisperSettings(BaseModel):
 class ASRSettings(BaseModel):
     engine: Literal["gigaam", "whisper"] = "gigaam"
     language: str = "ru"
+    device: Literal["auto", "cpu", "cuda"] = "auto"
     gigaam: GigaamSettings = GigaamSettings()
     whisper: WhisperSettings = WhisperSettings()
 

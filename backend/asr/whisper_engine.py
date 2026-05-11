@@ -27,8 +27,9 @@ class WhisperEngine:
 
     name = "whisper"
 
-    def __init__(self, model_size: str = DEFAULT_MODEL):
+    def __init__(self, model_size: str = DEFAULT_MODEL, device: str = "auto"):
         self._model_size = model_size
+        self._device = device
         self._model = None
         self._error: Optional[str] = None
         self._loading = False
@@ -67,7 +68,11 @@ class WhisperEngine:
             from faster_whisper import WhisperModel  # type: ignore
             import torch
 
-            device = "cuda" if torch.cuda.is_available() else "cpu"
+            device = (
+                self._device
+                if self._device != "auto"
+                else ("cuda" if torch.cuda.is_available() else "cpu")
+            )
             compute_type = "float16" if device == "cuda" else "int8"
             log.info(
                 "Loading faster-whisper %s on %s (%s)",

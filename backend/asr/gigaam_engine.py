@@ -328,8 +328,9 @@ class GigaamEngine:
 
     name = "gigaam"
 
-    def __init__(self, version: str = "v3"):
+    def __init__(self, version: str = "v3", device: str = "auto"):
         self._version = version
+        self._device = device
         self._model: Optional[GigaAMCTC] = None
         self._longform: Optional[LongformCTC] = None
         self._decoder: Optional[CTCDecoderWithLM] = None
@@ -368,10 +369,13 @@ class GigaamEngine:
         if self._loaded or self._error or self._needs_install:
             return
         try:
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            log.info("Using device: %s", device)
+            if self._device == "auto":
+                device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            else:
+                device = torch.device(self._device)
+            log.info("Using device: %s (configured: %s)", device, self._device)
             gc.collect()
-            if torch.cuda.is_available():
+            if device.type == "cuda":
                 torch.cuda.empty_cache()
 
             log.info("Loading GigaAM %s CTC...", self._version)
