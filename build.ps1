@@ -67,6 +67,7 @@ a = Analysis(
         'gigaam.utils',
         'gigaam.preprocess',
         'gigaam.onnx_utils',
+        'torchaudio',
         'soundfile',
         'onnxruntime',
         'pyctcdecode',

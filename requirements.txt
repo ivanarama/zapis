@@ -19,6 +19,8 @@ gigaam @ git+https://github.com/salute-developers/GigaAM.git@6e4b027c6fb554e09e8
 # его отдельно в build.ps1 c --no-deps (его единственная реальная зависимость —
 # pygtrie ниже).
 torch==2.5.1
+# gigaam imports torchaudio (preprocess.py: MelSpectrogram) but doesn't declare it
+torchaudio==2.5.1
 numpy==2.4.4
 scipy==1.17.1
 sentencepiece==0.2.1
