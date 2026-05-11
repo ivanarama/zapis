@@ -26,24 +26,28 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# requirements.txt specifies gigaam from GitHub, but pip may skip reinstall
-# if a PyPI version (without v3) is already in the venv. Force the GitHub build
-# so the bundled exe carries v3_ctc weights/metadata.
-# Pinned to the same commit as requirements.txt — bump both together.
-Write-Host "Ensuring GigaAM v3 (GitHub build) is installed..." -ForegroundColor Yellow
-pip install --force-reinstall "git+https://github.com/salute-developers/GigaAM.git@6e4b027c6fb554e09e8b9059b757a175295ab879"
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: pip install for gigaam failed. Build aborted." -ForegroundColor Red
-    exit 1
-}
-
-# Sanity check: v3_ctc must be present in either the new (_MODEL_HASHES, dict)
-# or legacy (_MODEL_NAMES, list) registry.
+# requirements.txt pins gigaam to a GitHub commit, so a fresh install already
+# carries v3. But a dev venv may already hold a stale PyPI gigaam (v1/v2 only)
+# that pip treats as satisfying the requirement — detect that via the model
+# registry and only then re-install from GitHub. This also keeps CI from
+# cloning the repo twice (the clone is where a flaky github.com 500 would bite).
+# Keep the commit below in sync with requirements.txt.
+# v3_ctc lives in _MODEL_HASHES (dict, new GitHub gigaam) or _MODEL_NAMES (list, old PyPI).
 python -c "import gigaam, sys; reg = getattr(gigaam, '_MODEL_HASHES', None) or getattr(gigaam, '_MODEL_NAMES', ()); sys.exit(0 if 'v3_ctc' in reg else 1)"
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: installed gigaam does not expose v3_ctc. Build aborted." -ForegroundColor Red
-    exit 1
+    Write-Host "Installed gigaam lacks v3_ctc -- reinstalling from GitHub..." -ForegroundColor Yellow
+    pip install --force-reinstall --no-deps "git+https://github.com/salute-developers/GigaAM.git@6e4b027c6fb554e09e8b9059b757a175295ab879"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: pip install for gigaam failed (transient github.com 500? just retry the build). Aborted." -ForegroundColor Red
+        exit 1
+    }
+    python -c "import gigaam, sys; reg = getattr(gigaam, '_MODEL_HASHES', None) or getattr(gigaam, '_MODEL_NAMES', ()); sys.exit(0 if 'v3_ctc' in reg else 1)"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: gigaam still does not expose v3_ctc after reinstall. Aborted." -ForegroundColor Red
+        exit 1
+    }
 }
+Write-Host "GigaAM v3_ctc present." -ForegroundColor Green
 
 # PyInstaller spec
 $specContent = @"
