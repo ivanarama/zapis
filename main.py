@@ -71,13 +71,26 @@ if __name__ == "__main__":
             log.exception("Server thread crashed")
 
     def _show_error(message: str):
-        try:
-            import ctypes
-            ctypes.windll.user32.MessageBoxW(
-                0, message, "Записная книжка — Ошибка", 0x10
-            )
-        except Exception:
-            print(message, file=sys.stderr)
+        if sys.platform == "win32":
+            try:
+                import ctypes
+                ctypes.windll.user32.MessageBoxW(
+                    0, message, "Записная книжка — Ошибка", 0x10
+                )
+                return
+            except Exception:
+                pass
+        elif sys.platform == "darwin":
+            try:
+                import subprocess
+                subprocess.run([
+                    "osascript", "-e",
+                    f'display alert "Записная книжка — Ошибка" message {repr(message)}'
+                ], check=False)
+                return
+            except Exception:
+                pass
+        print(message, file=sys.stderr)
 
     log = logging.getLogger("zapis")
     _setup_logging(to_file=True)
