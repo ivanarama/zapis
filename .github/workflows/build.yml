@@ -24,8 +24,12 @@ jobs:
             artifact: Zapis-linux
             build_cmd: bash build.sh
             build_shell: bash
+          - os: macos-13
+            artifact: Zapis-macos-intel
+            build_cmd: bash build.sh
+            build_shell: bash
           - os: macos-latest
-            artifact: Zapis-macos
+            artifact: Zapis-macos-arm
             build_cmd: bash build.sh
             build_shell: bash
 

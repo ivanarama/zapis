@@ -4,26 +4,43 @@ set -euo pipefail
 
 echo "Building Zapis..."
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+VENV_DIR="$SCRIPT_DIR/venv"
+
+# Pick a compatible Python (torch 2.5.1 needs ≤3.12; prefer pyenv 3.12, then default)
+PICK_PYTHON="$(command -v "$HOME/.pyenv/versions/3.12.9/bin/python3.12" 2>/dev/null \
+    || command -v python3)"
+
+# Create/activate virtual environment
+if [ ! -d "$VENV_DIR" ]; then
+    echo "Creating virtual environment with $PICK_PYTHON..."
+    "$PICK_PYTHON" -m venv "$VENV_DIR"
+fi
+source "$VENV_DIR/bin/activate"
+
+PYTHON="$(command -v python)"
+PIP="$(command -v pip)"
+
 # Clean previous build
 rm -rf dist build zapis.spec
 
 echo "Installing dependencies..."
-pip install -r requirements.txt
+"$PIP" install -r requirements.txt
 
 # pyctcdecode 0.5.0 pins numpy<2.0.0 which conflicts with gigaam's numpy==2.*.
 # It runs fine on numpy 2.x, so install without its (stale) deps.
 echo "Installing pyctcdecode (no-deps)..."
-pip install --no-deps pyctcdecode==0.5.0
+"$PIP" install --no-deps pyctcdecode==0.5.0
 
 # requirements.txt pins gigaam to a GitHub commit, so a fresh install already
 # carries v3. But a dev venv may hold a stale PyPI gigaam (v1/v2 only).
 # Keep the commit below in sync with requirements.txt.
-if python -c "import gigaam, sys; reg = getattr(gigaam, '_MODEL_HASHES', None) or getattr(gigaam, '_MODEL_NAMES', ()); sys.exit(0 if 'v3_ctc' in reg else 1)"; then
+if "$PYTHON" -c "import gigaam, sys; reg = getattr(gigaam, '_MODEL_HASHES', None) or getattr(gigaam, '_MODEL_NAMES', ()); sys.exit(0 if 'v3_ctc' in reg else 1)"; then
     echo "GigaAM v3_ctc present."
 else
     echo "Installed gigaam lacks v3_ctc -- reinstalling from GitHub..."
-    pip install --force-reinstall --no-deps "git+https://github.com/salute-developers/GigaAM.git@6e4b027c6fb554e09e8b9059b757a175295ab879"
-    if ! python -c "import gigaam, sys; reg = getattr(gigaam, '_MODEL_HASHES', None) or getattr(gigaam, '_MODEL_NAMES', ()); sys.exit(0 if 'v3_ctc' in reg else 1)"; then
+    "$PIP" install --force-reinstall --no-deps "git+https://github.com/salute-developers/GigaAM.git@6e4b027c6fb554e09e8b9059b757a175295ab879"
+    if ! "$PYTHON" -c "import gigaam, sys; reg = getattr(gigaam, '_MODEL_HASHES', None) or getattr(gigaam, '_MODEL_NAMES', ()); sys.exit(0 if 'v3_ctc' in reg else 1)"; then
         echo "ERROR: gigaam still does not expose v3_ctc after reinstall. Aborted." >&2
         exit 1
     fi
@@ -167,7 +184,7 @@ SPEC
 fi
 
 echo "Running PyInstaller..."
-python -u -m PyInstaller zapis.spec --clean --noconfirm
+"$PYTHON" -u -m PyInstaller zapis.spec --clean --noconfirm
 
 cp settings.json dist/ 2>/dev/null || true
 

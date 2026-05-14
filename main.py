@@ -12,8 +12,22 @@ if __name__ == "__main__":
     import logging
     import os
     import socket
+    import ssl
     import threading
     import traceback
+
+    # macOS Python doesn't use system certificates — inject certifi bundle
+    if sys.platform == "darwin":
+        try:
+            import certifi
+            os.environ.setdefault("SSL_CERT_FILE", certifi.where())
+            os.environ.setdefault("REQUESTS_CA_BUNDLE", certifi.where())
+            # urllib doesn't respect SSL_CERT_FILE — patch ssl context directly
+            ssl._create_default_https_context = lambda: ssl.create_default_context(
+                cafile=certifi.where()
+            )
+        except ImportError:
+            pass
 
     if sys.stdout is None:
         sys.stdout = open(os.devnull, "w")
