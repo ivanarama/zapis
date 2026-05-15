@@ -25,7 +25,18 @@ PIP="$(command -v pip)"
 rm -rf dist build zapis.spec
 
 echo "Installing dependencies..."
-"$PIP" install -r requirements.txt
+
+# macOS Intel has no pre-built torch wheels — use CPU-only index instead.
+if [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "x86_64" ]; then
+    echo "macOS Intel detected — installing torch/torchaudio from CPU-only index..."
+    "$PIP" install torch==2.5.1 torchaudio==2.5.1 \
+        --index-url https://download.pytorch.org/whl/cpu
+    # Install everything else from PyPI, skipping torch/torchaudio already done
+    grep -v -e "^torch==" -e "^torchaudio==" -e "^#" -e "^$" requirements.txt \
+        | "$PIP" install -r /dev/stdin
+else
+    "$PIP" install -r requirements.txt
+fi
 
 # pyctcdecode 0.5.0 pins numpy<2.0.0 which conflicts with gigaam's numpy==2.*.
 # It runs fine on numpy 2.x, so install without its (stale) deps.
