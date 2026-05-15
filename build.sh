@@ -26,11 +26,12 @@ rm -rf dist build zapis.spec
 
 echo "Installing dependencies..."
 
-# macOS Intel has no pre-built torch wheels — use CPU-only index instead.
+# macOS Intel has no pre-built torch wheels after 2.2.x.
+# Use the latest available version — gigaam uses ONNX Runtime, torch is only
+# needed for torchaudio (audio loading).
 if [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "x86_64" ]; then
-    echo "macOS Intel detected — installing torch/torchaudio from CPU-only index..."
-    "$PIP" install torch==2.5.1 torchaudio==2.5.1 \
-        --index-url https://download.pytorch.org/whl/cpu
+    echo "macOS Intel detected — using torch 2.2.2 (last available wheel)..."
+    "$PIP" install torch==2.2.2 torchaudio==2.2.2
     # Install everything else from PyPI, skipping torch/torchaudio already done
     grep -v -e "^torch==" -e "^torchaudio==" -e "^#" -e "^$" requirements.txt \
         | "$PIP" install -r /dev/stdin
