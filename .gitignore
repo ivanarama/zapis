@@ -1,5 +1,7 @@
 # Virtual environment
 venv311/
+venv/
+.python-version
 
 # Build artifacts
 build/

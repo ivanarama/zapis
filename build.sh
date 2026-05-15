@@ -30,10 +30,13 @@ echo "Installing dependencies..."
 # Use the latest available version — gigaam uses ONNX Runtime, torch is only
 # needed for torchaudio (audio loading).
 if [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "x86_64" ]; then
-    echo "macOS Intel detected — using torch 2.2.2 (last available wheel)..."
+    echo "macOS Intel detected — installing compatible versions..."
     "$PIP" install torch==2.2.2 torchaudio==2.2.2
-    # Install everything else from PyPI, skipping torch/torchaudio already done
-    grep -v -e "^torch==" -e "^torchaudio==" -e "^#" -e "^$" requirements.txt \
+    # gigaam pins onnxruntime==1.23.* which doesn't exist for Intel — install with --no-deps
+    "$PIP" install --no-deps "git+https://github.com/salute-developers/GigaAM.git@6e4b027c6fb554e09e8b9059b757a175295ab879"
+    "$PIP" install onnxruntime==1.19.2 'omegaconf==2.3.*' 'onnx==1.19.*' soundfile hydra-core tqdm
+    # Install remaining deps (skip torch/torchaudio/gigaam already done)
+    grep -v -e "^torch==" -e "^torchaudio==" -e "^gigaam" -e "^#" -e "^$" requirements.txt \
         | "$PIP" install -r /dev/stdin
 else
     "$PIP" install -r requirements.txt
