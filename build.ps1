@@ -28,7 +28,7 @@ if ($LASTEXITCODE -ne 0) {
 
 # requirements.txt pins gigaam to a GitHub commit, so a fresh install already
 # carries v3. But a dev venv may already hold a stale PyPI gigaam (v1/v2 only)
-# that pip treats as satisfying the requirement — detect that via the model
+# that pip treats as satisfying the requirement -- detect that via the model
 # registry and only then re-install from GitHub. This also keeps CI from
 # cloning the repo twice (the clone is where a flaky github.com 500 would bite).
 # Keep the commit below in sync with requirements.txt.
@@ -49,7 +49,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "GigaAM v3_ctc present." -ForegroundColor Green
 
-# kenlm: C++ extension, no Windows wheel on PyPI.  Install from a pre-built
+# kenlm: C++ extension, no Windows wheel on PyPI. Install from a pre-built
 # wheel (downloaded from GitHub Actions artifact) if available, otherwise skip.
 $kenlmWheels = Get-ChildItem -Path "wheels" -Filter "kenlm-*.whl" -ErrorAction SilentlyContinue
 if ($kenlmWheels) {
@@ -59,107 +59,103 @@ if ($kenlmWheels) {
         Write-Host "WARNING: kenlm wheel install failed, continuing without it." -ForegroundColor Yellow
     }
 } else {
-    Write-Host "No kenlm wheel found in wheels/ — building without LM support." -ForegroundColor Yellow
+    Write-Host "No kenlm wheel found in wheels/ -- building without LM support." -ForegroundColor Yellow
 }
 
-# PyInstaller spec
-$specContent = @"
-# -*- mode: python ; coding: utf-8 -*-
-
-block_cipher = None
-
-a = Analysis(
-    ['main.py'],
-    pathex=[],
-    binaries=[],
-    datas=[
-        ('frontend', 'frontend'),
-        ('settings.json', '.'),
-    ],
-    hiddenimports=[
-        # GigaAM stack (v3 from GitHub depends on soundfile + onnxruntime)
-        'gigaam',
-        'gigaam.decoding',
-        'gigaam.model',
-        'gigaam.utils',
-        'gigaam.preprocess',
-        'gigaam.onnx_utils',
-        'torchaudio',
-        'soundfile',
-        'onnxruntime',
-        'pyctcdecode',
-        'pyctcdecode.constants',
-        'pyctcdecode.language_model',
-        # kenlm: C++ extension, optional import inside pyctcdecode. Only present
-        # in CI builds (compiled there) — harmless as a hidden import otherwise.
-        'kenlm',
-        'sentencepiece',
-        'pygtrie',
-        # faster-whisper stack
-        'faster_whisper',
-        'ctranslate2',
-        'tokenizers',
-        # pyav -- audio decoder shared by both ASR engines (replaces ffmpeg subprocess)
-        'av',
-        # LLM clients
-        'openai',
-        'anthropic',
-        # backend submodules — на случай динамических импортов
-        'backend.asr',
-        'backend.asr.gigaam_engine',
-        'backend.asr.whisper_engine',
-        'backend.asr.factory',
-        'backend.llm',
-        'backend.llm.client',
-        'backend.llm.prompts',
-        'backend.config',
-        'backend.schema',
-        'backend.formats',
-    ],
-    hookspath=['hooks'],
-    hooksconfig={},
-    runtime_hooks=[],
-    excludes=['test', 'tests', 'pytest', 'jupyter', 'tensorboard'],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
-    cipher=block_cipher,
-    noarchive=False,
+# Write PyInstaller spec to file (avoid here-string encoding issues in PS 5.1)
+$specLines = @(
+    '# -*- mode: python ; coding: utf-8 -*-'
+    ''
+    'block_cipher = None'
+    ''
+    'a = Analysis('
+    "    ['main.py'],"
+    '    pathex=[],'
+    '    binaries=[],'
+    '    datas=['
+    "        ('frontend', 'frontend'),"
+    "        ('settings.json', '.'),"
+    '    ],'
+    '    hiddenimports=['
+    '        # GigaAM stack'
+    "        'gigaam',"
+    "        'gigaam.decoding',"
+    "        'gigaam.model',"
+    "        'gigaam.utils',"
+    "        'gigaam.preprocess',"
+    "        'gigaam.onnx_utils',"
+    "        'torchaudio',"
+    "        'soundfile',"
+    "        'onnxruntime',"
+    "        'pyctcdecode',"
+    "        'pyctcdecode.constants',"
+    "        'pyctcdecode.language_model',"
+    '        # kenlm: C++ extension, optional import inside pyctcdecode'
+    "        'kenlm',"
+    "        'sentencepiece',"
+    "        'pygtrie',"
+    '        # faster-whisper stack'
+    "        'faster_whisper',"
+    "        'ctranslate2',"
+    "        'tokenizers',"
+    '        # pyav -- audio decoder shared by both ASR engines'
+    "        'av',"
+    '        # LLM clients'
+    "        'openai',"
+    "        'anthropic',"
+    '        # backend submodules'
+    "        'backend.asr',"
+    "        'backend.asr.gigaam_engine',"
+    "        'backend.asr.whisper_engine',"
+    "        'backend.asr.factory',"
+    "        'backend.llm',"
+    "        'backend.llm.client',"
+    "        'backend.llm.prompts',"
+    "        'backend.config',"
+    "        'backend.schema',"
+    "        'backend.formats',"
+    '    ],'
+    "    hookspath=['hooks'],"
+    '    hooksconfig={},'
+    '    runtime_hooks=[],'
+    "    excludes=['test', 'tests', 'pytest', 'jupyter', 'tensorboard'],"
+    '    win_no_prefer_redirects=False,'
+    '    win_private_assemblies=False,'
+    '    cipher=block_cipher,'
+    '    noarchive=False,'
+    ')'
+    ''
+    'pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)'
+    ''
+    'exe = EXE('
+    '    pyz,'
+    '    a.scripts,'
+    '    a.binaries,'
+    '    a.zipfiles,'
+    '    a.datas,'
+    '    [],'
+    "    name='Zapis',"
+    '    debug=False,'
+    '    bootloader_ignore_signals=False,'
+    '    strip=False,'
+    '    upx=False,'
+    '    upx_exclude=[],'
+    '    runtime_tmpdir=None,'
+    '    console=False,'
+    '    disable_windowed_traceback=False,'
+    '    argv_emulation=False,'
+    '    target_arch=None,'
+    '    codesign_identity=None,'
+    '    entitlements_file=None,'
+    ')'
 )
-
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
-
-exe = EXE(
-    pyz,
-    a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    [],
-    name='Zapis',
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=False,
-    upx_exclude=[],
-    runtime_tmpdir=None,
-    console=False,
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
-)
-"@
-
-$specContent | Out-File -FilePath "zapis.spec" -Encoding UTF8
+$specLines | Out-File -FilePath "zapis.spec" -Encoding utf8
 
 Write-Host "Running PyInstaller in a separate cmd window..." -ForegroundColor Yellow
 Write-Host "Live log: Get-Content C:\Projects\Zapis\build.log -Tail 5 -Wait" -ForegroundColor Cyan
-# PyInstaller на Windows иногда ловит "Aborted by user request" из-за того, что
-# Windows Terminal/PowerShell родительской сессии шлёт CTRL_BREAK при больших
-# объёмах вывода. Запускаем в отдельном окне cmd через Start-Process БЕЗ
-# -NoNewWindow -- у дочернего процесса своя консоль и свой process group,
-# сигналы родительского PowerShell туда не утекают.
+# PyInstaller sometimes catches "Aborted by user request" because the parent
+# PowerShell session sends CTRL_BREAK on large output. Run in a separate cmd
+# window so the child process gets its own console and process group.
 $pyExe = (Get-Command python).Source
 $cmdLine = "`"$pyExe`" -u -m PyInstaller zapis.spec --clean --noconfirm > build.log 2>&1"
 $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c",$cmdLine -Wait -PassThru

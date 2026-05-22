@@ -31,10 +31,14 @@ GIGAAM_FREQ = 25
 
 
 def _pairwise(iterable):
+    """itertools.pairwise (Python 3.10+) — собственная реализация для 3.8/3.9.
+
+    Выдаёт строго N-1 пар: (s0, s1), (s1, s2), ... — без трейлинг-пары
+    (last, None), иначе потребитель падает на распаковке None.
+    """
     it = iter(iterable)
     a = next(it, None)
-    while a is not None:
-        b = next(it, None)
+    for b in it:
         yield a, b
         a = b
 
