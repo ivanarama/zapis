@@ -233,6 +233,29 @@ class OutputBeam:
 
 
 class CTCDecoderWithLM:
+    @staticmethod
+    def _ensure_kenlm() -> bool:
+        try:
+            import kenlm  # noqa: F401
+            return True
+        except ImportError:
+            pass
+        log.info("kenlm not found — installing...")
+        import subprocess
+        import sys
+        try:
+            subprocess.check_call(
+                [sys.executable, "-m", "pip", "install", "kenlm"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            import kenlm  # noqa: F401
+            log.info("kenlm installed successfully")
+            return True
+        except Exception as exc:
+            log.warning("kenlm auto-install failed: %s", exc)
+            return False
+
     def __init__(
         self, ctc_model: LongformCTC, kenlm_path: str,
         alpha: float = 0.5, beta: float = 1.0, beam_width: int = 100,
@@ -245,13 +268,22 @@ class CTCDecoderWithLM:
         self.beam_prune_logp = beam_prune_logp
         self.token_min_logp = token_min_logp
 
-        log.info("Loading KenLM model...")
-        self.decoder = pyctcdecode.build_ctcdecoder(
-            labels=list(ctc_model.vocab),
-            kenlm_model_path=str(kenlm_path),
-            alpha=alpha,
-            beta=beta,
-        )
+        _has_kenlm = self._ensure_kenlm()
+
+        if _has_kenlm:
+            log.info("Loading KenLM model...")
+            self.decoder = pyctcdecode.build_ctcdecoder(
+                labels=list(ctc_model.vocab),
+                kenlm_model_path=str(kenlm_path),
+                alpha=alpha,
+                beta=beta,
+            )
+        else:
+            log.warning("kenlm not available — falling back to LM-free beam search")
+            self.decoder = pyctcdecode.build_ctcdecoder(
+                labels=list(ctc_model.vocab),
+                kenlm_model_path=None,
+            )
 
     def timed_transcribe(self, waveform: np.ndarray) -> list[dict]:
         from pyctcdecode.constants import DEFAULT_PRUNE_BEAMS
