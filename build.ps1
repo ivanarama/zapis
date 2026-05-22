@@ -49,6 +49,19 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "GigaAM v3_ctc present." -ForegroundColor Green
 
+# kenlm: C++ extension, no Windows wheel on PyPI.  Install from a pre-built
+# wheel (downloaded from GitHub Actions artifact) if available, otherwise skip.
+$kenlmWheels = Get-ChildItem -Path "wheels" -Filter "kenlm-*.whl" -ErrorAction SilentlyContinue
+if ($kenlmWheels) {
+    Write-Host "Installing kenlm from local wheel..." -ForegroundColor Yellow
+    pip install $kenlmWheels[0].FullName
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "WARNING: kenlm wheel install failed, continuing without it." -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "No kenlm wheel found in wheels/ — building without LM support." -ForegroundColor Yellow
+}
+
 # PyInstaller spec
 $specContent = @"
 # -*- mode: python ; coding: utf-8 -*-
