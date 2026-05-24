@@ -21,8 +21,13 @@ source "$VENV_DIR/bin/activate"
 PYTHON="$(command -v python)"
 PIP="$(command -v pip)"
 
-# Clean previous build
-rm -rf dist build zapis.spec
+# Clean previous build.
+# ВАЖНО: не удаляем dist/ целиком — там лежат пользовательские
+# settings.json и transcripts/. PyInstaller с --noconfirm перезапишет
+# бинарник (Zapis / Zapis.app) сам.
+rm -rf build zapis.spec
+rm -f dist/Zapis
+rm -rf dist/Zapis.app
 
 echo "Installing dependencies..."
 
@@ -201,7 +206,11 @@ fi
 echo "Running PyInstaller..."
 "$PYTHON" -u -m PyInstaller zapis.spec --clean --noconfirm
 
-cp settings.json dist/ 2>/dev/null || true
+# Кладём дефолтный settings.json только при первом билде — не затираем
+# пользовательский, если он уже есть рядом с бинарником.
+if [ ! -f dist/settings.json ]; then
+    cp settings.json dist/ 2>/dev/null || true
+fi
 
 if [ "$OS_NAME" = "Darwin" ]; then
     echo ""

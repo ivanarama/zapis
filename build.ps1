@@ -4,10 +4,13 @@ $ErrorActionPreference = "Stop"
 
 Write-Host "Building Zapis.exe..." -ForegroundColor Cyan
 
-# Clean previous build
-if (Test-Path "dist") { Remove-Item -Recurse -Force "dist" }
+# Clean previous build.
+# ВАЖНО: НЕ удаляем dist/ целиком — там лежат пользовательские
+# settings.json и transcripts/ (создаются рядом с .exe). PyInstaller
+# с --noconfirm сам перезапишет dist/Zapis.exe.
 if (Test-Path "build") { Remove-Item -Recurse -Force "build" }
 if (Test-Path "zapis.spec") { Remove-Item -Force "zapis.spec" }
+if (Test-Path "dist\Zapis.exe") { Remove-Item -Force "dist\Zapis.exe" }
 
 Write-Host "Installing dependencies..." -ForegroundColor Yellow
 pip install -r requirements.txt
@@ -166,7 +169,11 @@ if ($proc.ExitCode -ne 0) {
     exit $proc.ExitCode
 }
 
-Copy-Item "settings.json" -Destination "dist" -ErrorAction SilentlyContinue
+# Кладём дефолтный settings.json только при первом билде — не затираем
+# пользовательский, если он уже есть.
+if (-not (Test-Path "dist\settings.json")) {
+    Copy-Item "settings.json" -Destination "dist" -ErrorAction SilentlyContinue
+}
 
 Write-Host "`nBuild complete!" -ForegroundColor Green
 Write-Host "Output: dist\Zapis.exe" -ForegroundColor Cyan
