@@ -21,6 +21,9 @@
         activeEngine: 'gigaam',
         statusReady: false,
         statusPolling: false,
+        currentId: null,   // id открытой сохранённой расшифровки
+        aiBlocks: [],       // накопленные ИИ-блоки текущей расшифровки
+        library: [],        // лёгкий список сохранённых расшифровок
     };
 
     document.addEventListener('DOMContentLoaded', init);
@@ -38,6 +41,7 @@
         setupTranscriptSearch();
         await loadEngines();
         setupStatusPolling();
+        await refreshLibrary();
     }
 
     async function loadSettings() {
@@ -219,7 +223,7 @@
                         return;
                     }
                     statusEl.classList.add('status--loading');
-                    dotText.textContent = `Загрузка модели… (${s.detail || s.engine})`;
+                    dotText.textContent = `Загрузка модели в память… (${s.detail || s.engine})`;
                     state.statusReady = false;
                     updateTranscribeBtn();
                     setTimeout(tick, 1500);
@@ -307,12 +311,17 @@
                 return;
             }
             state.result = data.result;
+            state.currentId = null;
+            state.aiBlocks = [];
             renderTranscript(state.result);
+            renderAiHistory();
             $('#export-card').hidden = false;
             $('#btn-custom-ask').disabled = false;
             $$('.preset-btn').forEach((b) => (b.disabled = false));
             // Авто-переключение на вкладку транскрипта
             $('.tab[data-tab="transcript"]').click();
+            // Сразу сохраняем расшифровку — ИИ-обработку можно сделать позже.
+            await saveNewTranscript(data.result);
         } catch (e) {
             alert('Ошибка: ' + e.message);
         } finally {
@@ -423,7 +432,8 @@
         });
     }
 
-    function runStream(payload, title) {
+    // Создаёт DOM-карточку ИИ-блока и возвращает {block, body}.
+    function createAiBlock(title) {
         const history = $('#ai-history');
         if (history.querySelector('.empty')) history.innerHTML = '';
 
@@ -444,6 +454,11 @@
             copyBtn.textContent = 'Скопировано';
             setTimeout(() => (copyBtn.textContent = 'Копировать'), 1500);
         });
+        return { block, body };
+    }
+
+    function runStream(payload, title) {
+        const { body } = createAiBlock(title);
 
         let acc = '';
         window.streamLLM(payload, {
@@ -451,12 +466,205 @@
                 acc += t;
                 body.textContent = acc;
             },
-            onDone: () => body.classList.remove('streaming'),
+            onDone: () => {
+                body.classList.remove('streaming');
+                persistAiBlock(title, acc);
+            },
             onError: (msg) => {
                 body.classList.remove('streaming');
                 body.classList.add('ai-block__error');
                 body.textContent = msg;
             },
+        });
+    }
+
+    // Перерисовывает историю ИИ-блоков из state.aiBlocks (хронологический порядок).
+    function renderAiHistory() {
+        const history = $('#ai-history');
+        history.innerHTML = '';
+        if (!state.aiBlocks.length) {
+            history.innerHTML =
+                '<div class="empty"><div class="empty__hint">' +
+                'Сначала получите транскрипт, затем нажмите кнопку или задайте свой вопрос.' +
+                '</div></div>';
+            return;
+        }
+        state.aiBlocks.forEach((b) => {
+            const { body } = createAiBlock(b.title || 'ИИ-ответ');
+            body.classList.remove('streaming');
+            body.textContent = b.body || '';
+        });
+    }
+
+    // Дописывает завершённый ИИ-блок к сохранённой расшифровке.
+    async function persistAiBlock(title, content) {
+        if (!content) return;
+        state.aiBlocks.push({ title, body: content, created_at: Date.now() / 1000 });
+        if (!state.currentId) return;
+        try {
+            await fetch(`/api/transcripts/${state.currentId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ai_blocks: state.aiBlocks }),
+            });
+            refreshLibrary();
+        } catch (e) {
+            console.error('save ai block failed', e);
+        }
+    }
+
+    // ----- Библиотека сохранённых расшифровок -----
+
+    async function saveNewTranscript(result) {
+        const baseName = state.file
+            ? state.file.name.replace(/\.[^.]+$/, '')
+            : 'Расшифровка';
+        try {
+            const res = await fetch('/api/transcripts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: baseName,
+                    source: state.file ? state.file.name : '',
+                    engine: $('#select-engine').value,
+                    language: $('#select-language').value,
+                    result,
+                    ai_blocks: [],
+                }),
+            });
+            const data = await res.json();
+            if (res.ok && data.transcript) {
+                state.currentId = data.transcript.id;
+                state.aiBlocks = [];
+                await refreshLibrary();
+            }
+        } catch (e) {
+            console.error('save transcript failed', e);
+        }
+    }
+
+    async function refreshLibrary() {
+        try {
+            const res = await fetch('/api/transcripts');
+            const data = await res.json();
+            state.library = data.transcripts || [];
+        } catch (e) {
+            console.error('library load failed', e);
+            state.library = [];
+        }
+        renderLibrary();
+    }
+
+    function renderLibrary() {
+        const list = $('#library-list');
+        list.innerHTML = '';
+        if (!state.library.length) {
+            list.innerHTML =
+                '<div class="library-empty">Пока нет сохранённых расшифровок. ' +
+                'Транскрибируйте файл — он появится здесь.</div>';
+            return;
+        }
+        state.library.forEach((item) => {
+            const row = document.createElement('div');
+            row.className = 'library-item';
+            if (item.id === state.currentId) row.classList.add('library-item--active');
+            row.dataset.id = item.id;
+            const metaParts = [formatDate(item.created_at), item.engine];
+            if (item.duration) metaParts.push(formatTime(item.duration));
+            if (item.ai_count) metaParts.push(`ИИ: ${item.ai_count}`);
+            row.innerHTML = `
+                <div class="library-item__main">
+                    <div class="library-item__name">${escapeHtml(item.name)}</div>
+                    <div class="library-item__meta">${escapeHtml(metaParts.filter(Boolean).join(' · '))}</div>
+                </div>
+                <button class="library-item__btn library-item__btn--rename" title="Переименовать">✎</button>
+                <button class="library-item__btn library-item__btn--del" title="Удалить">×</button>`;
+            row.querySelector('.library-item__main')
+                .addEventListener('click', () => openTranscript(item.id));
+            row.querySelector('.library-item__btn--rename')
+                .addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    startRename(row, item);
+                });
+            row.querySelector('.library-item__btn--del')
+                .addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    deleteTranscript(item.id);
+                });
+            list.appendChild(row);
+        });
+    }
+
+    async function openTranscript(id) {
+        try {
+            const res = await fetch(`/api/transcripts/${id}`);
+            if (!res.ok) {
+                alert('Не удалось загрузить расшифровку');
+                return;
+            }
+            const rec = await res.json();
+            state.result = rec.result || {};
+            state.currentId = rec.id;
+            state.aiBlocks = rec.ai_blocks || [];
+            renderTranscript(state.result);
+            renderAiHistory();
+            $('#transcript-search').value = '';
+            $('#export-card').hidden = false;
+            $('#btn-custom-ask').disabled = false;
+            $$('.preset-btn').forEach((b) => (b.disabled = false));
+            renderLibrary();
+            $('.tab[data-tab="transcript"]').click();
+        } catch (e) {
+            alert('Ошибка: ' + e.message);
+        }
+    }
+
+    async function deleteTranscript(id) {
+        if (!confirm('Удалить эту расшифровку безвозвратно?')) return;
+        try {
+            await fetch(`/api/transcripts/${id}`, { method: 'DELETE' });
+            if (state.currentId === id) state.currentId = null;
+            refreshLibrary();
+        } catch (e) {
+            console.error('delete transcript failed', e);
+        }
+    }
+
+    function startRename(row, item) {
+        const nameEl = row.querySelector('.library-item__name');
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'library-item__rename-input';
+        input.value = item.name;
+        nameEl.replaceWith(input);
+        input.focus();
+        input.select();
+
+        let done = false;
+        const commit = async () => {
+            if (done) return;
+            done = true;
+            const newName = input.value.trim() || item.name;
+            if (newName !== item.name) {
+                try {
+                    await fetch(`/api/transcripts/${item.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: newName }),
+                    });
+                } catch (e) {
+                    console.error('rename failed', e);
+                }
+            }
+            refreshLibrary();
+        };
+        input.addEventListener('blur', commit);
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') input.blur();
+            if (e.key === 'Escape') {
+                done = true;
+                renderLibrary();
+            }
         });
     }
 
@@ -471,6 +679,13 @@
         const m = Math.floor(seconds / 60);
         const s = Math.floor(seconds % 60);
         return `${m}:${String(s).padStart(2, '0')}`;
+    }
+
+    function formatDate(ts) {
+        if (!ts) return '';
+        const d = new Date(ts * 1000);
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
     }
 
     function formatSize(bytes) {

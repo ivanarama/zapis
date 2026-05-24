@@ -17,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import formats
+from . import transcripts as transcript_store
 from .asr import factory as asr_factory
 from .config import get_settings, save_settings, update_settings
 from .llm import (
@@ -298,6 +299,79 @@ async def settings_put(request: Request):
 @app.post("/api/settings")
 async def settings_post(request: Request):
     return await settings_put(request)
+
+
+# ---------- Transcripts (сохранённые расшифровки) ----------
+
+
+@app.get("/api/transcripts")
+async def transcripts_list():
+    return {"transcripts": transcript_store.list_transcripts()}
+
+
+@app.get("/api/transcripts/{tid}")
+async def transcripts_get(tid: str):
+    try:
+        rec = transcript_store.get_transcript(tid)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    if rec is None:
+        return JSONResponse({"error": "Расшифровка не найдена"}, status_code=404)
+    return rec
+
+
+class CreateTranscriptBody(BaseModel):
+    name: str = ""
+    source: str = ""
+    engine: str = ""
+    language: str = ""
+    result: dict
+    ai_blocks: list = Field(default_factory=list)
+
+
+@app.post("/api/transcripts")
+async def transcripts_create(body: CreateTranscriptBody):
+    rec = transcript_store.create_transcript(
+        name=body.name or "Без названия",
+        source=body.source,
+        engine=body.engine,
+        language=body.language,
+        result=body.result,
+        ai_blocks=body.ai_blocks,
+    )
+    return {"ok": True, "transcript": rec}
+
+
+class UpdateTranscriptBody(BaseModel):
+    name: Optional[str] = None
+    ai_blocks: Optional[list] = None
+
+
+@app.put("/api/transcripts/{tid}")
+async def transcripts_update(tid: str, body: UpdateTranscriptBody):
+    patch: dict = {}
+    if body.name is not None:
+        patch["name"] = body.name
+    if body.ai_blocks is not None:
+        patch["ai_blocks"] = body.ai_blocks
+    try:
+        rec = transcript_store.update_transcript(tid, patch)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    if rec is None:
+        return JSONResponse({"error": "Расшифровка не найдена"}, status_code=404)
+    return {"ok": True, "transcript": rec}
+
+
+@app.delete("/api/transcripts/{tid}")
+async def transcripts_delete(tid: str):
+    try:
+        ok = transcript_store.delete_transcript(tid)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    if not ok:
+        return JSONResponse({"error": "Расшифровка не найдена"}, status_code=404)
+    return {"ok": True}
 
 
 # ---------- Export ----------

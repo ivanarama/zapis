@@ -197,6 +197,7 @@ button, input, select, textarea {
     flex: 1;
     display: grid;
     grid-template-columns: 360px 1fr;
+    grid-template-rows: minmax(0, 1fr);
     gap: 16px;
     padding: 16px;
     min-height: 0;
@@ -310,6 +311,80 @@ textarea { resize: vertical; min-height: 60px; font-family: inherit; }
     animation: spin 0.8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ----- Library (сохранённые расшифровки) ----- */
+.card--library {
+    flex: 1;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+}
+
+.library-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0 -4px;
+    padding: 0 4px;
+}
+
+.library-empty {
+    color: var(--text-subtle);
+    font-size: 12px;
+    text-align: center;
+    padding: 16px 8px;
+}
+
+.library-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    background: var(--bg-elev-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+.library-item:hover { border-color: var(--border-strong); }
+.library-item--active { border-color: var(--accent); }
+
+.library-item__main { flex: 1; min-width: 0; }
+.library-item__name {
+    font-size: 13px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.library-item__meta {
+    font-size: 11px;
+    color: var(--text-subtle);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.library-item__rename-input {
+    font-size: 13px;
+    padding: 2px 6px;
+}
+
+.library-item__btn {
+    flex-shrink: 0;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-subtle);
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-size: 14px;
+    line-height: 1;
+}
+.library-item__btn:hover { color: var(--text); background: var(--bg-elev); }
+.library-item__btn--del:hover { color: var(--danger); }
 
 /* ----- Tabs ----- */
 .tabs {
@@ -570,7 +645,7 @@ textarea { resize: vertical; min-height: 60px; font-family: inherit; }
 
 /* Responsive */
 @media (max-width: 900px) {
-    .app-main { grid-template-columns: 1fr; }
+    .app-main { grid-template-columns: 1fr; grid-template-rows: none; }
     .panel--left { order: 2; }
     .panel--right { order: 1; }
     .form-row { grid-template-columns: 1fr; }
