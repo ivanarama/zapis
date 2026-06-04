@@ -7,7 +7,6 @@ import json
 import logging
 import sys
 import threading
-import urllib.parse
 from pathlib import Path
 from typing import Optional
 
@@ -377,12 +376,11 @@ async def transcripts_delete(tid: str):
 # ---------- Export ----------
 
 
-@app.get("/api/export/{fmt}")
-async def api_export(fmt: str, text: str = ""):
-    """Экспорт расшифровки. text — url-encoded JSON результата транскрипции."""
+@app.post("/api/export/{fmt}")
+async def api_export(fmt: str, request: Request):
+    """Экспорт расшифровки. JSON результата — в теле POST-запроса."""
     try:
-        result_json = urllib.parse.unquote(text)
-        result = json.loads(result_json) if result_json else {}
+        result = await request.json()
 
         if fmt == "txt":
             content = formats.format_txt(result)

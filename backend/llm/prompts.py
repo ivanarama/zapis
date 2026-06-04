@@ -134,6 +134,22 @@ def _mmss(seconds: float) -> str:
     return f"{m}:{s:02d}"
 
 
+def _safe_substitute(template: str, **kwargs: str) -> tuple[str, set[str]]:
+    """Безопасная подстановка плейсхолдеров {key} → value.
+
+    Возвращает (результат, множество использованных ключей).
+    В отличие от str.format(), не падает на фигурных скобках в тексте
+    пользователя и не требует, чтобы все ключи были указаны в шаблоне.
+    """
+    used: set[str] = set()
+    for key, value in kwargs.items():
+        placeholder = "{" + key + "}"
+        if placeholder in template:
+            template = template.replace(placeholder, value)
+            used.add(key)
+    return template, used
+
+
 def build_messages_for_preset(
     preset: PresetKey,
     transcript_text: str,
@@ -143,14 +159,24 @@ def build_messages_for_preset(
     tmpl: PromptTemplate = prompts[preset]  # type: ignore[assignment]
 
     if preset == "youtube_timecodes":
-        user = tmpl.user_template.format(
-            segments=_format_segments_for_timecodes(segments),
+        seg_text = _format_segments_for_timecodes(segments)
+        user, used = _safe_substitute(
+            tmpl.user_template, segments=seg_text,
         )
+        # Если шаблон не содержал {segments} — добавляем в конец
+        if "segments" not in used and seg_text:
+            user += f"\n\nСегменты:\n{seg_text}"
     else:
         # Ограничение на длину текста: современные модели (gpt-4o, claude, etc.)
         # поддерживают 128k+ токенов контекста. 64k символов ≈ 16k токенов —
         # достаточно для 30–60 мин транскрипта без разорванности.
-        user = tmpl.user_template.format(transcript=transcript_text[:64000])
+        trunc = transcript_text[:64000]
+        user, used = _safe_substitute(
+            tmpl.user_template, transcript=trunc,
+        )
+        # Если шаблон не содержал {transcript} — добавляем в конец
+        if "transcript" not in used and trunc:
+            user += f"\n\nТранскрипт:\n{trunc}"
 
     return [
         {"role": "system", "content": tmpl.system},

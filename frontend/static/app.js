@@ -395,14 +395,32 @@
 
     function setupExport() {
         $$('[data-export]').forEach((btn) => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', async () => {
                 if (!state.result) return;
                 const fmt = btn.dataset.export;
-                const text = encodeURIComponent(JSON.stringify(state.result));
-                const link = document.createElement('a');
-                link.href = `/api/export/${fmt}?text=${text}`;
-                link.download = `transcript.${fmt}`;
-                link.click();
+                try {
+                    const res = await fetch(`/api/export/${fmt}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(state.result),
+                    });
+                    if (!res.ok) {
+                        const err = await res.json().catch(() => ({}));
+                        alert('Ошибка экспорта: ' + (err.error || res.statusText));
+                        return;
+                    }
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    const disposition = res.headers.get('Content-Disposition') || '';
+                    const match = disposition.match(/filename=(.+)/);
+                    link.download = match ? match[1] : `transcript.${fmt}`;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                } catch (e) {
+                    alert('Ошибка экспорта: ' + e.message);
+                }
             });
         });
     }
