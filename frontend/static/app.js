@@ -315,13 +315,14 @@
             state.aiBlocks = [];
             renderTranscript(state.result);
             renderAiHistory();
+            // Сначала сохраняем расшифровку — нужен currentId для сохранения ИИ-блоков.
+            await saveNewTranscript(data.result);
+            // Теперь безопасно включаем кнопки ИИ.
             $('#export-card').hidden = false;
             $('#btn-custom-ask').disabled = false;
             $$('.preset-btn').forEach((b) => (b.disabled = false));
             // Авто-переключение на вкладку транскрипта
             $('.tab[data-tab="transcript"]').click();
-            // Сразу сохраняем расшифровку — ИИ-обработку можно сделать позже.
-            await saveNewTranscript(data.result);
         } catch (e) {
             alert('Ошибка: ' + e.message);
         } finally {
