@@ -200,8 +200,7 @@
 
                 <!-- Prompts -->
                 <div class="modal-panel" data-modal-panel="prompts">
-                    <p class="hint">Пустые поля = использовать встроенный шаблон. В user-шаблоне можно использовать
-                        <code>{transcript}</code> или <code>{segments}</code> (для таймкодов).</p>
+                    <p class="hint">Пустое поле = встроенная инструкция. Транскрипт подставляется автоматически.</p>
                     <div id="prompts-editor"></div>
                 </div>
 
@@ -260,11 +259,7 @@
         <div class="prompt-card">
             <h4 class="prompt-card__title"></h4>
             <label class="field">
-                <span>System</span>
-                <textarea class="prompt-system" rows="2"></textarea>
-            </label>
-            <label class="field">
-                <span>User template</span>
+                <span>Инструкция</span>
                 <textarea class="prompt-user" rows="4"></textarea>
             </label>
         </div>

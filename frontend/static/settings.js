@@ -109,8 +109,6 @@
             $('.prompt-card__title', node).textContent = title;
             const cur = currentPrompts[key] || {};
             const def = promptDefaults[key] || {};
-            $('.prompt-system', node).value = cur.system || '';
-            $('.prompt-system', node).placeholder = def.system || '';
             $('.prompt-user', node).value = cur.user_template || '';
             $('.prompt-user', node).placeholder = def.user_template || '';
             root.appendChild(node);
@@ -119,13 +117,9 @@
         // Custom system — отдельной карточкой
         const customNode = tmpl.content.firstElementChild.cloneNode(true);
         customNode.dataset.key = 'custom_system';
-        $('.prompt-card__title', customNode).textContent = 'Свободный сценарий — system';
-        $('.prompt-system', customNode).style.display = 'none';
-        customNode.querySelector('.field:first-of-type').style.display = 'none';
+        $('.prompt-card__title', customNode).textContent = 'Свободный сценарий — system prompt';
         $('.prompt-user', customNode).value = currentPrompts.custom_system || '';
         $('.prompt-user', customNode).placeholder = promptDefaults.custom_system || '';
-        const userLabel = customNode.querySelectorAll('.field span')[1];
-        if (userLabel) userLabel.textContent = 'System prompt для свободных вопросов';
         root.appendChild(customNode);
     }
 
@@ -137,7 +131,6 @@
                 out.custom_system = $('.prompt-user', card).value;
             } else {
                 out[key] = {
-                    system: $('.prompt-system', card).value,
                     user_template: $('.prompt-user', card).value,
                 };
             }
