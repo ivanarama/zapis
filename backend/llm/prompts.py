@@ -97,9 +97,24 @@ def get_prompts() -> dict[str, PromptTemplate | str]:
     return out
 
 
-def _format_segments_for_timecodes(segments: list[dict], limit: int = 60) -> str:
+def _format_segments_for_timecodes(segments: list[dict], limit: int = 120) -> str:
+    """Форматирует сегменты для генерации таймкодов.
+
+    Равномерно выбирает *limit* сегментов по всей длительности,
+    чтобы LLM видел контент от начала до конца, а не только первые минуты.
+    """
+    if not segments:
+        return ""
+
+    if len(segments) <= limit:
+        picked = segments
+    else:
+        # Равномерная выборка: берём каждый n-й сегмент
+        step = len(segments) / limit
+        picked = [segments[int(i * step)] for i in range(limit)]
+
     lines = []
-    for seg in segments[:limit]:
+    for seg in picked:
         start = seg.get("start") or 0.0
         text = (seg.get("text") or "").strip().replace("\n", " ")
         if not text:
@@ -132,9 +147,10 @@ def build_messages_for_preset(
             segments=_format_segments_for_timecodes(segments),
         )
     else:
-        # Ограничение на длину текста — у разных провайдеров разный контекст,
-        # 16к символов — компромисс под gpt-4o-class.
-        user = tmpl.user_template.format(transcript=transcript_text[:16000])
+        # Ограничение на длину текста: современные модели (gpt-4o, claude, etc.)
+        # поддерживают 128k+ токенов контекста. 64k символов ≈ 16k токенов —
+        # достаточно для 30–60 мин транскрипта без разорванности.
+        user = tmpl.user_template.format(transcript=transcript_text[:64000])
 
     return [
         {"role": "system", "content": tmpl.system},
@@ -149,7 +165,7 @@ def build_messages_for_custom(
     prompts = get_prompts()
     system = prompts["custom_system"]  # type: ignore[assignment]
     user = (
-        f"Транскрипт:\n{transcript_text[:16000]}\n\n"
+        f"Транскрипт:\n{transcript_text[:64000]}\n\n"
         f"Задание: {user_question.strip()}"
     )
     return [
