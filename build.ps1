@@ -117,6 +117,19 @@ $specLines = @(
     "        'backend.config',"
     "        'backend.schema',"
     "        'backend.formats',"
+    '        # TTS (озвучивание) -- Silero грузится через torch.hub в рантайме'
+    "        'backend.tts',"
+    "        'backend.tts.engine',"
+    "        'backend.tts.pipeline',"
+    "        'backend.tts.reader',"
+    "        'backend.tts.chapters',"
+    "        'backend.tts.normalize',"
+    "        'backend.tts.chunker',"
+    "        'backend.tts.assemble',"
+    "        'backend.tts.export',"
+    "        'razdel',"
+    '        # num2words языковые модули импортируются динамически -- см. hooks/hook-num2words.py'
+    "        'num2words',"
     '    ],'
     "    hookspath=['hooks'],"
     '    hooksconfig={},'

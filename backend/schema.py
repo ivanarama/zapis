@@ -107,6 +107,8 @@ class PromptsSettings(BaseModel):
     telegram_post: PromptTemplate = PromptTemplate()
     article: PromptTemplate = PromptTemplate()
     custom_system: str = ""
+    # Промпт LLM-нормализации текста перед озвучиванием (пусто = встроенный).
+    tts_normalize: PromptTemplate = PromptTemplate()
 
 
 class AppSettings(BaseModel):
@@ -115,8 +117,48 @@ class AppSettings(BaseModel):
     theme: Literal["dark", "light"] = "dark"
 
 
+# ---------- TTS (озвучивание текста) ----------
+
+
+class SileroSettings(BaseModel):
+    version: Literal["v4_ru", "v3_1_ru"] = "v4_ru"
+    speaker: Literal["aidar", "baya", "kseniya", "xenia", "eugene"] = "baya"
+    sample_rate: Literal[8000, 24000, 48000] = 48000
+    put_accent: bool = True
+    put_yo: bool = True
+
+
+class TTSPauses(BaseModel):
+    sentence: int = 300
+    paragraph: int = 700
+    chapter: int = 1500
+
+
+class TTSNormalize(BaseModel):
+    # use_llm=False → rule-based (num2words). True → LLM по профилям из llm.profiles.
+    use_llm: bool = False
+
+
+class TTSExport(BaseModel):
+    format: Literal["mp3", "m4b", "m4a", "wav"] = "mp3"
+    split_chapters: bool = True
+    bitrate: int = 128000
+
+
+class TTSSettings(BaseModel):
+    engine: Literal["silero"] = "silero"
+    language: str = "ru"
+    device: Literal["auto", "cpu", "cuda"] = "cpu"
+    silero: SileroSettings = SileroSettings()
+    pauses: TTSPauses = TTSPauses()
+    normalize: TTSNormalize = TTSNormalize()
+    export: TTSExport = TTSExport()
+    chapter_pattern: str = ""  # пусто = встроенный паттерн глав
+
+
 class Settings(BaseModel):
     app: AppSettings = AppSettings()
     asr: ASRSettings = ASRSettings()
     llm: LLMSettings = LLMSettings()
     prompts: PromptsSettings = PromptsSettings()
+    tts: TTSSettings = TTSSettings()

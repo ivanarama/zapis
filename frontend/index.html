@@ -7,6 +7,7 @@
     <link rel="preconnect" href="https://rsms.me/">
     <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
     <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/tts.css">
 </head>
 <body data-theme="dark">
     <header class="app-header">
@@ -19,6 +20,10 @@
             </svg>
             <span id="app-title">Записная книжка</span>
         </div>
+        <nav class="mode-switch" role="tablist">
+            <button class="mode-btn mode-btn--active" data-mode="transcribe">Транскрипция</button>
+            <button class="mode-btn" data-mode="audiobook">Озвучка</button>
+        </nav>
         <div class="header-actions">
             <span id="asr-status" class="status status--loading">
                 <span class="status__dot"></span>
@@ -34,7 +39,7 @@
         </div>
     </header>
 
-    <main class="app-main">
+    <main class="app-main" id="view-transcribe" data-view="transcribe">
         <!-- Левая панель: загрузка + настройки запуска + экспорт -->
         <aside class="panel panel--left">
             <section class="card">
@@ -134,6 +139,91 @@
         </section>
     </main>
 
+    <!-- ===== Озвучка: текст → аудиокнига ===== -->
+    <main class="app-main" id="view-audiobook" data-view="audiobook" hidden>
+        <aside class="panel panel--left">
+            <section class="card">
+                <div class="upload-area" id="tts-upload-area">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                    </svg>
+                    <div class="upload-area__title">Перетащите .txt или нажмите</div>
+                    <div class="upload-area__hint">текстовый файл книги · txt</div>
+                    <input type="file" id="tts-file-input" accept=".txt,text/plain" hidden>
+                </div>
+                <div class="upload-meta" id="tts-upload-meta" hidden></div>
+
+                <label class="field">
+                    <span>Название</span>
+                    <input type="text" id="tts-title" placeholder="Название книги">
+                </label>
+                <label class="field">
+                    <span>Автор</span>
+                    <input type="text" id="tts-author" placeholder="Автор (необязательно)">
+                </label>
+
+                <div class="form-row">
+                    <label class="field">
+                        <span>Голос</span>
+                        <select id="tts-speaker"></select>
+                    </label>
+                    <label class="field">
+                        <span>Частота</span>
+                        <select id="tts-sample-rate">
+                            <option value="48000">48 кГц</option>
+                            <option value="24000">24 кГц</option>
+                            <option value="8000">8 кГц</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div class="form-row">
+                    <label class="field">
+                        <span>Формат</span>
+                        <select id="tts-format">
+                            <option value="mp3">MP3</option>
+                            <option value="m4b">M4B (аудиокнига)</option>
+                            <option value="m4a">M4A</option>
+                            <option value="wav">WAV</option>
+                        </select>
+                    </label>
+                    <label class="field field--check">
+                        <input type="checkbox" id="tts-split" checked>
+                        <span>Файл на главу</span>
+                    </label>
+                </div>
+
+                <label class="field field--check">
+                    <input type="checkbox" id="tts-use-llm">
+                    <span>LLM-нормализация текста (через LLM-профили из настроек)</span>
+                </label>
+
+                <button id="btn-synthesize" class="btn btn--primary btn--block" disabled>
+                    Озвучить
+                </button>
+
+                <div class="progress progress--bar" id="tts-progress" hidden>
+                    <div class="progress__track"><div class="progress__fill" id="tts-progress-fill"></div></div>
+                    <span id="tts-progress-text">Подготовка…</span>
+                </div>
+            </section>
+        </aside>
+
+        <section class="panel panel--right">
+            <div class="tabs" role="tablist">
+                <button class="tab tab--active" role="tab">Результат</button>
+            </div>
+            <div class="tab-panel tab-panel--active">
+                <div class="tts-result empty" id="tts-result">
+                    <div class="empty__hint">Загрузите .txt слева и нажмите «Озвучить».</div>
+                </div>
+            </div>
+        </section>
+    </main>
+
     <!-- Settings modal -->
     <div class="modal" id="settings-modal" hidden>
         <div class="modal__backdrop" data-close></div>
@@ -146,6 +236,7 @@
             <div class="modal__tabs" role="tablist">
                 <button class="modal-tab modal-tab--active" data-modal-tab="asr">ASR</button>
                 <button class="modal-tab" data-modal-tab="llm">LLM-профили</button>
+                <button class="modal-tab" data-modal-tab="tts">Озвучка</button>
                 <button class="modal-tab" data-modal-tab="prompts">Промпты</button>
                 <button class="modal-tab" data-modal-tab="appearance">Вид</button>
             </div>
@@ -202,6 +293,73 @@
                 <div class="modal-panel" data-modal-panel="prompts">
                     <p class="hint">Пустое поле = встроенная инструкция. Транскрипт подставляется автоматически.</p>
                     <div id="prompts-editor"></div>
+                </div>
+
+                <!-- TTS (озвучивание) -->
+                <div class="modal-panel" data-modal-panel="tts">
+                    <p class="hint">Параметры по умолчанию для режима «Озвучка». Их можно переопределить перед запуском.</p>
+                    <div class="form-row">
+                        <label class="field">
+                            <span>Голос</span>
+                            <select id="settings-tts-speaker">
+                                <option value="baya">baya (ж)</option>
+                                <option value="kseniya">kseniya (ж)</option>
+                                <option value="xenia">xenia (ж)</option>
+                                <option value="aidar">aidar (м)</option>
+                                <option value="eugene">eugene (м)</option>
+                            </select>
+                        </label>
+                        <label class="field">
+                            <span>Частота</span>
+                            <select id="settings-tts-rate">
+                                <option value="48000">48 кГц</option>
+                                <option value="24000">24 кГц</option>
+                                <option value="8000">8 кГц</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div class="form-row">
+                        <label class="field">
+                            <span>Формат</span>
+                            <select id="settings-tts-format">
+                                <option value="mp3">MP3</option>
+                                <option value="m4b">M4B (аудиокнига)</option>
+                                <option value="m4a">M4A</option>
+                                <option value="wav">WAV</option>
+                            </select>
+                        </label>
+                        <label class="field">
+                            <span>Битрейт, бит/с</span>
+                            <input type="number" id="settings-tts-bitrate" min="32000" max="320000" step="16000">
+                        </label>
+                    </div>
+                    <label class="field field--check">
+                        <input type="checkbox" id="settings-tts-split">
+                        <span>По умолчанию — файл на главу</span>
+                    </label>
+                    <label class="field field--check">
+                        <input type="checkbox" id="settings-tts-use-llm">
+                        <span>По умолчанию использовать LLM-нормализацию</span>
+                    </label>
+                    <div class="form-row">
+                        <label class="field">
+                            <span>Пауза: предложение, мс</span>
+                            <input type="number" id="settings-tts-pause-sentence" min="0" max="3000" step="50">
+                        </label>
+                        <label class="field">
+                            <span>абзац, мс</span>
+                            <input type="number" id="settings-tts-pause-paragraph" min="0" max="5000" step="50">
+                        </label>
+                        <label class="field">
+                            <span>глава, мс</span>
+                            <input type="number" id="settings-tts-pause-chapter" min="0" max="8000" step="100">
+                        </label>
+                    </div>
+                    <label class="field">
+                        <span>Промпт LLM-нормализации (пусто = встроенный)</span>
+                        <textarea id="settings-tts-normalize-prompt" rows="5"
+                            placeholder="Перепиши текст для озвучивания, не меняя смысл…"></textarea>
+                    </label>
                 </div>
 
                 <!-- Appearance -->
@@ -268,5 +426,6 @@
     <script src="/static/stream.js"></script>
     <script src="/static/settings.js"></script>
     <script src="/static/app.js"></script>
+    <script src="/static/tts.js"></script>
 </body>
 </html>

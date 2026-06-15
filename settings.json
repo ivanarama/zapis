@@ -25,6 +25,23 @@
     "youtube_timecodes":   { "system": "", "user_template": "" },
     "telegram_post":       { "system": "", "user_template": "" },
     "article":             { "system": "", "user_template": "" },
-    "custom_system": ""
+    "custom_system": "",
+    "tts_normalize":       { "system": "", "user_template": "" }
+  },
+  "tts": {
+    "engine": "silero",
+    "language": "ru",
+    "device": "cpu",
+    "silero": {
+      "version": "v4_ru",
+      "speaker": "baya",
+      "sample_rate": 48000,
+      "put_accent": true,
+      "put_yo": true
+    },
+    "pauses": { "sentence": 300, "paragraph": 700, "chapter": 1500 },
+    "normalize": { "use_llm": false },
+    "export": { "format": "mp3", "split_chapters": true, "bitrate": 128000 },
+    "chapter_pattern": ""
   }
 }

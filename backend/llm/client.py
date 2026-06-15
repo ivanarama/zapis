@@ -227,3 +227,85 @@ async def stream_chat(messages: list[dict]) -> AsyncGenerator[str, None]:
     if last_exc is not None:
         raise last_exc
     raise RuntimeError("Не удалось вызвать LLM ни по одному профилю.")
+
+
+async def _complete_openai(
+    client: AsyncOpenAI, model_name: str, messages: list[dict], temperature: float, max_tokens: int
+) -> str:
+    response = await client.chat.completions.create(
+        model=model_name.strip(),
+        messages=messages,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        stream=False,
+    )
+    if not response.choices:
+        return ""
+    return response.choices[0].message.content or ""
+
+
+async def _complete_anthropic(
+    model_name: str, messages: list[dict], temperature: float, max_tokens: int, *, base_url: str, api_key: str
+) -> str:
+    try:
+        import anthropic
+    except ImportError as e:
+        raise RuntimeError("Установите пакет anthropic: pip install anthropic") from e
+    if not api_key:
+        raise ValueError("Пустой API-ключ для Anthropic-профиля.")
+    system, amsg = _messages_for_anthropic(messages)
+    http_client = httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=30.0), trust_env=False)
+    client = anthropic.AsyncAnthropic(api_key=api_key, base_url=base_url.rstrip("/"), http_client=http_client)
+    kwargs: dict = {"model": model_name.strip(), "max_tokens": max_tokens, "messages": amsg, "temperature": temperature}
+    if system:
+        kwargs["system"] = system
+    msg = await client.messages.create(**kwargs)
+    return "".join(getattr(b, "text", "") or "" for b in msg.content)
+
+
+async def complete_chat(
+    messages: list[dict], *, temperature: float | None = None, max_tokens: int | None = None
+) -> str:
+    """Single-shot ответ LLM (без стрима) с фолбэком по профилям.
+
+    Для задач, где нужен цельный текст, а не поток токенов — например,
+    нормализация текста перед озвучиванием. temperature можно переопределить
+    (для нормализации передаём 0)."""
+    s = get_settings().llm
+    if not s.profiles:
+        raise RuntimeError("Не настроено ни одного LLM-профиля. Откройте настройки.")
+    temp = s.temperature if temperature is None else temperature
+    max_tok = _max_completion_tokens(s.max_tokens if max_tokens is None else max_tokens)
+
+    last_exc: BaseException | None = None
+    for prof in s.profiles:
+        url = (prof.base_url or s.base_url or "").strip().rstrip("/")
+        key = _key_for_profile(prof.api_key, s.api_key)
+        if not key:
+            last_exc = last_exc or ValueError(f"Профиль «{prof.name}»: пустой ключ.")
+            continue
+        if not url:
+            last_exc = last_exc or ValueError(f"Профиль «{prof.name}»: пустой Base URL.")
+            continue
+        for mn in prof.models:
+            mn = mn.strip()
+            if not mn:
+                continue
+            try:
+                if prof.api_provider == "anthropic":
+                    text = await _complete_anthropic(mn, messages, temp, max_tok, base_url=url, api_key=key)
+                else:
+                    client = _make_openai_client(url, key)
+                    text = await _complete_openai(client, mn, messages, temp, max_tok)
+                if text.strip():
+                    return text
+                last_exc = last_exc or RuntimeError(f"Модель {mn} вернула пустой ответ.")
+            except Exception as exc:  # noqa: BLE001
+                last_exc = exc
+                log.warning(
+                    "LLM(complete): профиль «%s» / модель %s — %s; пробуем дальше", prof.name, mn, exc
+                )
+
+    if last_exc is not None:
+        raise last_exc
+    raise RuntimeError("Не удалось вызвать LLM ни по одному профилю.")
