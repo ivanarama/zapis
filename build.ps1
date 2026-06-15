@@ -1,4 +1,4 @@
-# Zapis Build Script for Windows
+﻿# Zapis Build Script for Windows
 
 $ErrorActionPreference = "Stop"
 
