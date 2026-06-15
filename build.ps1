@@ -4,6 +4,20 @@ $ErrorActionPreference = "Stop"
 
 Write-Host "Building Zapis.exe..." -ForegroundColor Cyan
 
+# Resolve Python: prefer the project venv (.venv), else python on PATH.
+# Голый pip не на PATH, если venv не активирован, — поэтому зовём
+# "<python> -m pip", который сам ставит в нужное окружение без активации.
+if (Test-Path ".venv\Scripts\python.exe") {
+    $pyExe = (Resolve-Path ".venv\Scripts\python.exe").Path
+} else {
+    $pyExe = (Get-Command python -ErrorAction SilentlyContinue).Source
+}
+if (-not $pyExe) {
+    Write-Host "ERROR: Python не найден. Создай venv:  python -m venv .venv" -ForegroundColor Red
+    exit 1
+}
+Write-Host "Using Python: $pyExe" -ForegroundColor Cyan
+
 # Clean previous build.
 # ВАЖНО: НЕ удаляем dist/ целиком — там лежат пользовательские
 # settings.json и transcripts/ (создаются рядом с .exe). PyInstaller
@@ -13,7 +27,7 @@ if (Test-Path "zapis.spec") { Remove-Item -Force "zapis.spec" }
 if (Test-Path "dist\Zapis.exe") { Remove-Item -Force "dist\Zapis.exe" }
 
 Write-Host "Installing dependencies..." -ForegroundColor Yellow
-pip install -r requirements.txt
+& $pyExe -m pip install -r requirements.txt
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: pip install -r requirements.txt failed. Build aborted." -ForegroundColor Red
     exit 1
@@ -23,7 +37,7 @@ if ($LASTEXITCODE -ne 0) {
 # It actually runs fine on numpy 2.x, so install it without its (stale) deps;
 # pygtrie (its only real dependency) is already pinned in requirements.txt.
 Write-Host "Installing pyctcdecode (no-deps)..." -ForegroundColor Yellow
-pip install --no-deps pyctcdecode==0.5.0
+& $pyExe -m pip install --no-deps pyctcdecode==0.5.0
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: pip install for pyctcdecode failed. Build aborted." -ForegroundColor Red
     exit 1
@@ -36,15 +50,15 @@ if ($LASTEXITCODE -ne 0) {
 # cloning the repo twice (the clone is where a flaky github.com 500 would bite).
 # Keep the commit below in sync with requirements.txt.
 # v3_ctc lives in _MODEL_HASHES (dict, new GitHub gigaam) or _MODEL_NAMES (list, old PyPI).
-python -c "import gigaam, sys; reg = getattr(gigaam, '_MODEL_HASHES', None) or getattr(gigaam, '_MODEL_NAMES', ()); sys.exit(0 if 'v3_ctc' in reg else 1)"
+& $pyExe -c "import gigaam, sys; reg = getattr(gigaam, '_MODEL_HASHES', None) or getattr(gigaam, '_MODEL_NAMES', ()); sys.exit(0 if 'v3_ctc' in reg else 1)"
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Installed gigaam lacks v3_ctc -- reinstalling from GitHub..." -ForegroundColor Yellow
-    pip install --force-reinstall --no-deps "git+https://github.com/salute-developers/GigaAM.git@6e4b027c6fb554e09e8b9059b757a175295ab879"
+    & $pyExe -m pip install --force-reinstall --no-deps "git+https://github.com/salute-developers/GigaAM.git@6e4b027c6fb554e09e8b9059b757a175295ab879"
     if ($LASTEXITCODE -ne 0) {
         Write-Host "ERROR: pip install for gigaam failed (transient github.com 500? just retry the build). Aborted." -ForegroundColor Red
         exit 1
     }
-    python -c "import gigaam, sys; reg = getattr(gigaam, '_MODEL_HASHES', None) or getattr(gigaam, '_MODEL_NAMES', ()); sys.exit(0 if 'v3_ctc' in reg else 1)"
+    & $pyExe -c "import gigaam, sys; reg = getattr(gigaam, '_MODEL_HASHES', None) or getattr(gigaam, '_MODEL_NAMES', ()); sys.exit(0 if 'v3_ctc' in reg else 1)"
     if ($LASTEXITCODE -ne 0) {
         Write-Host "ERROR: gigaam still does not expose v3_ctc after reinstall. Aborted." -ForegroundColor Red
         exit 1
@@ -57,7 +71,7 @@ Write-Host "GigaAM v3_ctc present." -ForegroundColor Green
 $kenlmWheels = Get-ChildItem -Path "wheels" -Filter "kenlm-*.whl" -ErrorAction SilentlyContinue
 if ($kenlmWheels) {
     Write-Host "Installing kenlm from local wheel..." -ForegroundColor Yellow
-    pip install $kenlmWheels[0].FullName
+    & $pyExe -m pip install $kenlmWheels[0].FullName
     if ($LASTEXITCODE -ne 0) {
         Write-Host "WARNING: kenlm wheel install failed, continuing without it." -ForegroundColor Yellow
     }
@@ -172,7 +186,7 @@ Write-Host "Live log: Get-Content C:\Projects\Zapis\build.log -Tail 5 -Wait" -Fo
 # PyInstaller sometimes catches "Aborted by user request" because the parent
 # PowerShell session sends CTRL_BREAK on large output. Run in a separate cmd
 # window so the child process gets its own console and process group.
-$pyExe = (Get-Command python).Source
+# $pyExe уже определён выше (venv-aware).
 $cmdLine = "`"$pyExe`" -u -m PyInstaller zapis.spec --clean --noconfirm > build.log 2>&1"
 $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c",$cmdLine -Wait -PassThru
 if ($proc.ExitCode -ne 0) {
