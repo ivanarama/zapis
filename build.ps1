@@ -98,6 +98,18 @@ $specLines = @(
     '    _d, _b, _h = collect_all(_p)'
     '    _accent_datas += _d; _accent_bins += _b; _accent_hidden += _h'
     ''
+    '# ruaccent ships a 161 MB koziev/.../ruword2tags.db. RuleEngine.load() opens'
+    '# it (sqlite connect) but our process_all path never queries it, so drop it'
+    '# and substitute an empty 0-byte SQLite stub (valid empty DB) -- keeps'
+    '# RuleEngine.load() from failing while shedding 161 MB.'
+    'import os as _os, tempfile as _tf'
+    "_stub_dir = _os.path.join(_tf.gettempdir(), 'zapis_ruaccent_stub')"
+    '_os.makedirs(_stub_dir, exist_ok=True)'
+    "_stub_db = _os.path.join(_stub_dir, 'ruword2tags.db')"
+    "open(_stub_db, 'wb').close()"
+    "_accent_datas = [(_s, _dd) for (_s, _dd) in _accent_datas if _os.path.basename(_s).lower() != 'ruword2tags.db']"
+    "_accent_datas.append((_stub_db, _os.path.join('ruaccent', 'koziev', 'rupostagger', 'database')))"
+    ''
     'a = Analysis('
     "    ['main.py'],"
     '    pathex=[],'
@@ -177,7 +189,9 @@ $specLines = @(
     "    hookspath=['hooks'],"
     '    hooksconfig={},'
     '    runtime_hooks=[],'
-    "    excludes=['test', 'tests', 'pytest', 'jupyter', 'tensorboard'],"
+    '        # sympy/networkx -- torch-зависимости только для compile/fx,'
+    '        # в инференсе не нужны (import torch их не грузит). Исключаем.'
+    "    excludes=['test', 'tests', 'pytest', 'jupyter', 'tensorboard', 'sympy', 'networkx'],"
     '    win_no_prefer_redirects=False,'
     '    win_private_assemblies=False,'
     '    cipher=block_cipher,'
