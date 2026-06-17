@@ -37,6 +37,9 @@ class SileroEngine:
     """Обёртка над silero_tts. Потокобезопасная ленивая инициализация."""
 
     name = "silero"
+    # Silero понимает «+»-разметку ударений в тексте → pipeline может прогнать
+    # текст через ruaccent перед синтезом (см. backend.tts.stress).
+    accepts_accent_marks = True
 
     def __init__(self, version: str = "v4_ru", device: str = "cpu"):
         self.version = version
@@ -63,6 +66,15 @@ class SileroEngine:
                 device = torch.device(
                     "cuda" if (self._device_pref == "cuda" and torch.cuda.is_available()) else "cpu"
                 )
+                # На CPU ограничиваем пул потоков torch: каждый intra-op поток
+                # держит свои арена-буферы, а на машине с 8 ГБ ОЗУ пик памяти
+                # важнее скорости синтеза (см. memory: dev-machine-ram). Берём
+                # не больше 4 и не больше половины ядер.
+                if device.type == "cpu":
+                    import os
+
+                    cores = os.cpu_count() or 2
+                    torch.set_num_threads(max(1, min(4, cores // 2)))
                 log.info("Загрузка Silero %s на %s…", self.version, device)
                 model, _ = torch.hub.load(
                     repo_or_dir="snakers4/silero-models",
@@ -90,6 +102,13 @@ class SileroEngine:
             "error": self._error or "",
         }
 
+    def list_speakers(self) -> list:
+        return list(SPEAKERS_V4_RU)
+
+    def resolve_sample_rate(self, speaker: str, requested: int) -> int:
+        """Silero синтезирует на запрошенной частоте (из фикс. набора)."""
+        return requested if requested in SAMPLE_RATES else DEFAULT_SAMPLE_RATE
+
     # ---- synthesis ----
 
     def synth(
@@ -99,6 +118,7 @@ class SileroEngine:
         sample_rate: int = DEFAULT_SAMPLE_RATE,
         put_accent: bool = True,
         put_yo: bool = True,
+        **kwargs,  # совместимость интерфейса: чужие движку опции игнорируем
     ) -> np.ndarray:
         """Синтезирует один фрагмент → float32 mono PCM в [-1, 1].
 
@@ -116,13 +136,19 @@ class SileroEngine:
         if not clean:
             return np.zeros(0, dtype=np.float32)
 
-        audio = self._model.apply_tts(
-            text=clean,
-            speaker=speaker,
-            sample_rate=sample_rate,
-            put_accent=put_accent,
-            put_yo=put_yo,
-        )
+        import torch
+
+        # inference_mode отключает автоград: для повторного синтеза тысяч
+        # фрагментов это убирает построение графа и заметно снижает пик памяти
+        # (на 8 ГБ это критично — иначе процесс уходит в OOM).
+        with torch.inference_mode():
+            audio = self._model.apply_tts(
+                text=clean,
+                speaker=speaker,
+                sample_rate=sample_rate,
+                put_accent=put_accent,
+                put_yo=put_yo,
+            )
         return audio.detach().cpu().numpy().astype(np.float32)
 
 

@@ -150,9 +150,9 @@
                         <line x1="16" y1="13" x2="8" y2="13"/>
                         <line x1="16" y1="17" x2="8" y2="17"/>
                     </svg>
-                    <div class="upload-area__title">Перетащите .txt или нажмите</div>
-                    <div class="upload-area__hint">текстовый файл книги · txt</div>
-                    <input type="file" id="tts-file-input" accept=".txt,text/plain" hidden>
+                    <div class="upload-area__title">Перетащите .txt или .rtf или нажмите</div>
+                    <div class="upload-area__hint">текстовый файл книги · txt, rtf</div>
+                    <input type="file" id="tts-file-input" accept=".txt,.rtf,text/plain,application/rtf,text/rtf" hidden>
                 </div>
                 <div class="upload-meta" id="tts-upload-meta" hidden></div>
 
@@ -167,10 +167,20 @@
 
                 <div class="form-row">
                     <label class="field">
+                        <span>Движок</span>
+                        <select id="tts-engine">
+                            <option value="silero">Silero — быстро</option>
+                            <option value="piper">Piper — качество</option>
+                        </select>
+                    </label>
+                    <label class="field">
                         <span>Голос</span>
                         <select id="tts-speaker"></select>
                     </label>
-                    <label class="field">
+                </div>
+
+                <div class="form-row">
+                    <label class="field" id="tts-rate-field">
                         <span>Частота</span>
                         <select id="tts-sample-rate">
                             <option value="48000">48 кГц</option>
@@ -178,9 +188,6 @@
                             <option value="8000">8 кГц</option>
                         </select>
                     </label>
-                </div>
-
-                <div class="form-row">
                     <label class="field">
                         <span>Формат</span>
                         <select id="tts-format">
@@ -190,11 +197,27 @@
                             <option value="wav">WAV</option>
                         </select>
                     </label>
-                    <label class="field field--check">
-                        <input type="checkbox" id="tts-split" checked>
-                        <span>Файл на главу</span>
-                    </label>
                 </div>
+
+                <label class="field" id="tts-speed-field" hidden>
+                    <span>Темп речи (Piper): <small id="tts-speed-val">1.0</small> <small>— меньше = быстрее</small></span>
+                    <input type="range" id="tts-piper-speed" min="0.7" max="1.4" step="0.05" value="1.0">
+                </label>
+
+                <label class="field field--check">
+                    <input type="checkbox" id="tts-split" checked>
+                    <span>Файл на главу</span>
+                </label>
+
+                <label class="field field--check">
+                    <input type="checkbox" id="tts-pause-each">
+                    <span>Паузы между предложениями</span>
+                </label>
+
+                <label class="field field--check" id="tts-accent-field">
+                    <input type="checkbox" id="tts-accent" checked>
+                    <span>Точные ударения (ruaccent) <small id="tts-accent-note"></small></span>
+                </label>
 
                 <label class="field field--check">
                     <input type="checkbox" id="tts-use-llm">
@@ -300,7 +323,35 @@
                     <p class="hint">Параметры по умолчанию для режима «Озвучка». Их можно переопределить перед запуском.</p>
                     <div class="form-row">
                         <label class="field">
-                            <span>Голос</span>
+                            <span>Движок по умолчанию</span>
+                            <select id="settings-tts-engine">
+                                <option value="silero">Silero — быстро</option>
+                                <option value="piper">Piper — качество</option>
+                            </select>
+                        </label>
+                        <label class="field">
+                            <span>Голос Piper</span>
+                            <select id="settings-tts-piper-speaker">
+                                <option value="ru_RU-ruslan-medium">ruslan (м)</option>
+                                <option value="ru_RU-dmitri-medium">dmitri (м)</option>
+                                <option value="ru_RU-irina-medium">irina (ж)</option>
+                                <option value="ru_RU-denis-medium">denis (м)</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div class="form-row">
+                        <label class="field">
+                            <span>Темп Piper (меньше — быстрее)</span>
+                            <input type="number" id="settings-tts-piper-speed" min="0.5" max="2.0" step="0.05">
+                        </label>
+                        <label class="field field--check">
+                            <input type="checkbox" id="settings-tts-pause-each">
+                            <span>Паузы между предложениями по умолчанию</span>
+                        </label>
+                    </div>
+                    <div class="form-row">
+                        <label class="field">
+                            <span>Голос Silero</span>
                             <select id="settings-tts-speaker">
                                 <option value="baya">baya (ж)</option>
                                 <option value="kseniya">kseniya (ж)</option>
@@ -310,7 +361,7 @@
                             </select>
                         </label>
                         <label class="field">
-                            <span>Частота</span>
+                            <span>Частота Silero</span>
                             <select id="settings-tts-rate">
                                 <option value="48000">48 кГц</option>
                                 <option value="24000">24 кГц</option>
@@ -337,6 +388,19 @@
                         <input type="checkbox" id="settings-tts-split">
                         <span>По умолчанию — файл на главу</span>
                     </label>
+                    <div class="form-row">
+                        <label class="field field--check">
+                            <input type="checkbox" id="settings-tts-accent">
+                            <span>Точные ударения (ruaccent) по умолчанию</span>
+                        </label>
+                        <label class="field">
+                            <span>Модель ударений</span>
+                            <select id="settings-tts-accent-size">
+                                <option value="tiny">tiny — экономно по памяти</option>
+                                <option value="turbo3.1">turbo3.1 — точнее, тяжелее</option>
+                            </select>
+                        </label>
+                    </div>
                     <label class="field field--check">
                         <input type="checkbox" id="settings-tts-use-llm">
                         <span>По умолчанию использовать LLM-нормализацию</span>

@@ -83,16 +83,29 @@ if ($kenlmWheels) {
 $specLines = @(
     '# -*- mode: python ; coding: utf-8 -*-'
     ''
+    'from PyInstaller.utils.hooks import collect_all'
+    ''
     'block_cipher = None'
+    ''
+    '# Пакеты с данными/нативными или динамическими модулями, которым одних'
+    '# hiddenimports мало: ruaccent (ударения) + стек transformers/tokenizers/'
+    '# safetensors, и piper (внутри espeak-ng-data + нативный espeakbridge).'
+    '# collect_all забирает их целиком. Увеличивает размер exe; сами веса моделей'
+    '# НЕ бандлятся -- качаются в кэш рядом с приложением при первом запуске.'
+    "_accent_pkgs = ('transformers', 'tokenizers', 'safetensors', 'ruaccent', 'piper')"
+    '_accent_datas, _accent_bins, _accent_hidden = [], [], []'
+    'for _p in _accent_pkgs:'
+    '    _d, _b, _h = collect_all(_p)'
+    '    _accent_datas += _d; _accent_bins += _b; _accent_hidden += _h'
     ''
     'a = Analysis('
     "    ['main.py'],"
     '    pathex=[],'
-    '    binaries=[],'
+    '    binaries=_accent_bins,'
     '    datas=['
     "        ('frontend', 'frontend'),"
     "        ('settings.json', '.'),"
-    '    ],'
+    '    ] + _accent_datas,'
     '    hiddenimports=['
     '        # GigaAM stack'
     "        'gigaam',"
@@ -138,13 +151,29 @@ $specLines = @(
     "        'backend.tts.reader',"
     "        'backend.tts.chapters',"
     "        'backend.tts.normalize',"
+    "        'backend.tts.normalize_cache',"
     "        'backend.tts.chunker',"
     "        'backend.tts.assemble',"
     "        'backend.tts.export',"
+    "        'backend.tts.spool',"
+    "        'backend.tts.stress',"
     "        'razdel',"
+    '        # Ударения: ruaccent + его ML-стек (данные забирает collect_all выше)'
+    "        'ruaccent',"
+    "        'pycrfsuite',"
+    '        # Piper (движок «качество») + фабрика выбора движка'
+    "        'backend.tts.factory',"
+    "        'backend.tts.engine_piper',"
+    "        'piper',"
+    "        'piper.voice',"
+    "        'piper.config',"
+    "        'piper.download_voices',"
+    "        'piper.phonemize_espeak',"
+    "        'piper.espeakbridge',"
+    "        'pathvalidate',"
     '        # num2words языковые модули импортируются динамически -- см. hooks/hook-num2words.py'
     "        'num2words',"
-    '    ],'
+    '    ] + _accent_hidden,'
     "    hookspath=['hooks'],"
     '    hooksconfig={},'
     '    runtime_hooks=[],'

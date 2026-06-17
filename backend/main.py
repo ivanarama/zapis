@@ -32,10 +32,12 @@ from .llm import (
 )
 from .schema import Settings
 from .tts import export as tts_export
+from .tts import normalize_cache as tts_norm_cache
 from .tts import pipeline as tts_pipeline
 from .tts.engine import SPEAKERS_V4_RU
+from .tts.engine_piper import PIPER_RU_VOICES
 from .tts.normalize import normalize_text as tts_normalize_text
-from .tts.reader import decode_txt
+from .tts.reader import decode_book
 
 logging.basicConfig(
     level=logging.INFO,
@@ -58,24 +60,12 @@ app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR / "static")), name="
 
 @app.on_event("startup")
 async def _startup():
-    """Инициализирует активный ASR-движок в фоне.
-
-    GigaAM грузит модель на старте, чтобы первый запрос не ждал минуты.
-    Whisper — наоборот, ленивая загрузка при первом transcribe()."""
+    """Регистрируем активный ASR-движок и устройство. Саму модель НЕ грузим —
+    она загрузится лениво при первой транскрибации (см. api_transcribe).
+    Так открытие приложения ради озвучки не вкачивает ASR-модель в память."""
     settings = get_settings()
     asr_factory.set_active_engine(settings.asr.engine)
     asr_factory.set_device(settings.asr.device)
-
-    def _bg_init():
-        try:
-            engine = asr_factory.get_active_engine()
-            # Ленивые движки (Whisper) initialize() сразу не вызываем.
-            if engine.name == "gigaam":
-                engine.initialize()
-        except Exception:
-            log.exception("Ошибка инициализации ASR")
-
-    threading.Thread(target=_bg_init, daemon=True).start()
 
 
 @app.get("/")
@@ -144,15 +134,7 @@ async def asr_set_engine(body: SetEngineBody):
     if body.language:
         patch["asr"]["language"] = body.language
     update_settings(patch)
-    # Запустим фоновую инициализацию для нового движка, если ему нужно.
-    def _bg():
-        try:
-            eng = asr_factory.get_active_engine()
-            if eng.name == "gigaam":
-                eng.initialize()
-        except Exception:
-            log.exception("Ошибка инициализации ASR после смены движка")
-    threading.Thread(target=_bg, daemon=True).start()
+    # Модель не прогреваем — загрузится лениво при первой транскрибации.
     return {"ok": True, "status": asr_factory.get_active_engine().get_status()}
 
 
@@ -173,14 +155,13 @@ async def api_transcribe(
 
         eng = asr_factory.get_engine(engine_name)
         if engine_name == "whisper":
-            # синхронная инициализация при первом обращении
-            eng.initialize()
-            # передадим выбранный размер модели
+            # Размер модели задаём ДО загрузки; сама initialize() выполнится
+            # лениво внутри transcribe() в рабочем потоке, не блокируя loop.
             from .asr.whisper_engine import WhisperEngine
             if isinstance(eng, WhisperEngine):
                 eng.set_model_size(settings.asr.whisper.model)
 
-        # ASR — CPU/GPU-bound, выносим в thread
+        # ASR — CPU/GPU-bound, выносим в thread (там же ленивая инициализация)
         result = await asyncio.to_thread(eng.transcribe, data, file.filename, lang)
         return {"ok": True, "result": result}
     except Exception as e:
@@ -466,9 +447,28 @@ def _iter_text_windows(text: str, max_chars: int = 1500):
         yield buf
 
 
+def _llm_signature() -> str:
+    """Сигнатура активной LLM-конфигурации для ключа кэша нормализации.
+
+    Включает провайдеров, base_url и список моделей по профилям — при смене
+    модели кэш инвалидируется. temperature не учитываем: нормализацию всегда
+    зовём с temperature=0."""
+    s = get_settings().llm
+    parts = []
+    for p in s.profiles:
+        url = (p.base_url or s.base_url or "").strip().rstrip("/")
+        models = ",".join(m.strip() for m in p.models if m.strip())
+        parts.append(f"{p.api_provider}|{url}|{models}")
+    return "\n".join(parts)
+
+
 def _build_tts_normalizer():
-    """Async-нормализатор через LLM с откатом на rule-based и защитой от отсебятины."""
+    """Async-нормализатор через LLM с откатом на rule-based и защитой от отсебятины.
+
+    Результаты модели кэшируются на диске (см. normalize_cache): повторная
+    озвучка того же текста при тех же промпте/модели не дёргает LLM заново."""
     sys_prompt = (get_settings().prompts.tts_normalize.system or "").strip() or DEFAULT_TTS_NORMALIZE_SYSTEM
+    signature = f"{sys_prompt}\x00{_llm_signature()}"
 
     async def _normalize(text: str) -> str:
         text = (text or "").strip()
@@ -476,6 +476,10 @@ def _build_tts_normalizer():
             return text
         out_windows: list[str] = []
         for window in _iter_text_windows(text):
+            cached = tts_norm_cache.get(window, signature)
+            if cached is not None:
+                out_windows.append(cached)
+                continue
             try:
                 messages = [
                     {"role": "system", "content": sys_prompt},
@@ -483,10 +487,13 @@ def _build_tts_normalizer():
                 ]
                 result = (await complete_chat(messages, temperature=0)).strip()
                 # Защита: нормализация обычно удлиняет текст; резкое укорачивание =
-                # обрыв/отказ модели → откатываемся на rule-based для этого окна.
+                # обрыв/отказ модели → откатываемся на rule-based для этого окна
+                # и НЕ кэшируем (чтобы при следующем запуске получить полноценный).
                 if not result or len(result) < 0.6 * len(window):
                     log.warning("LLM-нормализация подозрительно коротка — откат на rule-based.")
-                    result = tts_normalize_text(window)
+                    out_windows.append(tts_normalize_text(window))
+                    continue
+                tts_norm_cache.put(window, signature, result)
                 out_windows.append(result)
             except Exception as e:  # noqa: BLE001
                 log.warning("LLM-нормализация не удалась (%s) — откат на rule-based.", e)
@@ -498,7 +505,17 @@ def _build_tts_normalizer():
 
 @app.get("/api/tts/voices")
 async def tts_voices():
-    return {"speakers": SPEAKERS_V4_RU, "tts": get_settings().tts.model_dump()}
+    ts = get_settings().tts
+    return {
+        "engine": ts.engine,
+        "engines": {
+            # fixed_rate=True → частоту диктует движок (Piper), UI прячет выбор.
+            "silero": {"speakers": SPEAKERS_V4_RU, "fixed_rate": False},
+            "piper": {"speakers": PIPER_RU_VOICES, "fixed_rate": True},
+        },
+        "speakers": SPEAKERS_V4_RU,  # совместимость со старым фронтендом
+        "tts": ts.model_dump(),
+    }
 
 
 @app.post("/api/tts/synthesize")
@@ -507,7 +524,7 @@ async def tts_synthesize(file: UploadFile = File(...), options: str = Form("{}")
     data = await file.read()
     if not data:
         return JSONResponse({"error": "Файл пустой"}, status_code=400)
-    text = decode_txt(data)
+    text = decode_book(data, file.filename)
     if not text.strip():
         return JSONResponse({"error": "В файле нет текста"}, status_code=400)
 
@@ -521,13 +538,44 @@ async def tts_synthesize(file: UploadFile = File(...), options: str = Form("{}")
     ts = get_settings().tts
     title = (opts.get("title") or "").strip() or Path(file.filename or "Книга").stem or "Книга"
     author = (opts.get("author") or "").strip()
-    speaker = opts.get("speaker") or ts.silero.speaker
-    sample_rate = int(opts.get("sample_rate") or ts.silero.sample_rate)
+    engine = (opts.get("engine") or ts.engine or "silero").lower()
+    if engine not in ("silero", "piper"):
+        engine = "silero"
+    if engine == "piper":
+        speaker = opts.get("speaker") or ts.piper.speaker
+        # Частоту для Piper выбирает сам голос — pipeline согласует её (resolve).
+        sample_rate = int(opts.get("sample_rate") or ts.silero.sample_rate)
+        synth_opts = {"length_scale": float(opts.get("length_scale") or ts.piper.length_scale)}
+    else:
+        speaker = opts.get("speaker") or ts.silero.speaker
+        sample_rate = int(opts.get("sample_rate") or ts.silero.sample_rate)
+        synth_opts = {"put_accent": ts.silero.put_accent, "put_yo": ts.silero.put_yo}
     audio_format = opts.get("format") or ts.export.format
     split_chapters = bool(opts.get("split_chapters", ts.export.split_chapters))
     bitrate = int(opts.get("bitrate") or ts.export.bitrate)
     use_llm = bool(opts.get("use_llm", ts.normalize.use_llm))
+    accent = bool(opts.get("accent", ts.accent.enabled))
+    per_sentence = bool(opts.get("pause_each_sentence", ts.pause_each_sentence))
     chapter_pattern = (ts.chapter_pattern or "").strip() or None
+
+    # Запоминаем выбор со страницы «Озвучка» между сеансами (движок, голос,
+    # частота, формат, разбивка, ударения, LLM). title/author — свойства книги, их
+    # не сохраняем. Падение записи настроек не должно мешать синтезу.
+    persist = {
+        "engine": engine,
+        "export": {"format": audio_format, "split_chapters": split_chapters},
+        "normalize": {"use_llm": use_llm},
+        "accent": {"enabled": accent},
+        "pause_each_sentence": per_sentence,
+    }
+    if engine == "piper":
+        persist["piper"] = {"speaker": speaker, "length_scale": synth_opts["length_scale"]}
+    else:
+        persist["silero"] = {"speaker": speaker, "sample_rate": sample_rate}
+    try:
+        update_settings({"tts": persist})
+    except Exception:  # noqa: BLE001
+        log.warning("Не удалось сохранить настройки озвучки", exc_info=True)
 
     out_dir = _audiobooks_dir() / tts_export.sanitize_filename(title)
     normalizer = _build_tts_normalizer() if use_llm else None
@@ -544,8 +592,11 @@ async def tts_synthesize(file: UploadFile = File(...), options: str = Form("{}")
                 audio_format=audio_format,
                 bitrate=bitrate,
                 split_chapters=split_chapters,
-                put_accent=ts.silero.put_accent,
-                put_yo=ts.silero.put_yo,
+                engine_name=engine,
+                synth_opts=synth_opts,
+                accent=accent,
+                accent_model_size=ts.accent.model_size,
+                per_sentence=per_sentence,
                 pauses=ts.pauses.model_dump(),
                 chapter_pattern=chapter_pattern,
                 normalizer=normalizer,

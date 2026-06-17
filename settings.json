@@ -39,8 +39,14 @@
       "put_accent": true,
       "put_yo": true
     },
+    "piper": {
+      "speaker": "ru_RU-ruslan-medium",
+      "length_scale": 1.0
+    },
     "pauses": { "sentence": 300, "paragraph": 700, "chapter": 1500 },
+    "pause_each_sentence": false,
     "normalize": { "use_llm": false },
+    "accent": { "enabled": true, "model_size": "tiny" },
     "export": { "format": "mp3", "split_chapters": true, "bitrate": 128000 },
     "chapter_pattern": ""
   }

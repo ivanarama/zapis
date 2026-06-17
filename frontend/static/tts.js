@@ -14,6 +14,15 @@
         setupModeSwitch();
         setupUpload();
         await loadVoices();
+        const engSel = $('#tts-engine');
+        if (engSel) engSel.addEventListener('change', applyEngine);
+        const speed = $('#tts-piper-speed');
+        if (speed) {
+            speed.addEventListener('input', () => {
+                const v = $('#tts-speed-val');
+                if (v) v.textContent = parseFloat(speed.value).toFixed(2);
+            });
+        }
         $('#btn-synthesize').addEventListener('click', synthesize);
     }
 
@@ -32,20 +41,60 @@
         try {
             const res = await fetch('/api/tts/voices');
             const data = await res.json();
-            const speakers = data.speakers || ['baya'];
+            state.engines = data.engines || {
+                silero: { speakers: data.speakers || ['baya'], fixed_rate: false },
+            };
             const tts = data.tts || {};
-            const sel = $('#tts-speaker');
-            sel.innerHTML = speakers.map((s) => `<option value="${s}">${s}</option>`).join('');
-            const sil = tts.silero || {};
-            if (sil.speaker) sel.value = sil.speaker;
-            if (sil.sample_rate) $('#tts-sample-rate').value = String(sil.sample_rate);
+            state.tts = tts;
+            const eng = $('#tts-engine');
+            if (eng) eng.value = data.engine || tts.engine || 'silero';
             const ex = tts.export || {};
             if (ex.format) $('#tts-format').value = ex.format;
+            if ((tts.silero || {}).sample_rate) {
+                $('#tts-sample-rate').value = String(tts.silero.sample_rate);
+            }
             $('#tts-split').checked = ex.split_chapters !== false;
+            $('#tts-accent').checked = !tts.accent || tts.accent.enabled !== false;
             $('#tts-use-llm').checked = !!(tts.normalize && tts.normalize.use_llm);
+            $('#tts-pause-each').checked = !!tts.pause_each_sentence;
+            const ls = (tts.piper && tts.piper.length_scale) || 1.0;
+            $('#tts-piper-speed').value = String(ls);
+            const sv = $('#tts-speed-val');
+            if (sv) sv.textContent = parseFloat(ls).toFixed(2);
+            applyEngine();
         } catch (e) {
             console.error('voices load failed', e);
         }
+    }
+
+    // Подстраивает форму под выбранный движок: список голосов, видимость частоты
+    // (Piper диктует её сам) и доступность ударений (ruaccent — только Silero).
+    function applyEngine() {
+        const engineSel = $('#tts-engine');
+        const engine = engineSel ? engineSel.value : 'silero';
+        const info = (state.engines && state.engines[engine]) || { speakers: [], fixed_rate: false };
+        const tts = state.tts || {};
+        const saved = engine === 'piper'
+            ? (tts.piper && tts.piper.speaker)
+            : (tts.silero && tts.silero.speaker);
+        const sel = $('#tts-speaker');
+        const speakers = (info.speakers && info.speakers.length) ? info.speakers : ['baya'];
+        sel.innerHTML = speakers.map((s) => `<option value="${s}">${s}</option>`).join('');
+        if (saved && speakers.includes(saved)) sel.value = saved;
+
+        const rateField = $('#tts-rate-field');
+        if (rateField) rateField.style.display = info.fixed_rate ? 'none' : '';
+
+        const speedField = $('#tts-speed-field');
+        if (speedField) speedField.hidden = engine !== 'piper';
+
+        const accent = $('#tts-accent');
+        const note = $('#tts-accent-note');
+        const accentApplies = engine !== 'piper';
+        if (accent) accent.disabled = !accentApplies;
+        const accentField = $('#tts-accent-field');
+        if (accentField) accentField.style.opacity = accentApplies ? '' : '0.5';
+        if (note) note.textContent = accentApplies ? '' : '— только для Silero';
     }
 
     function setupUpload() {
@@ -95,11 +144,15 @@
         const options = {
             title: $('#tts-title').value.trim(),
             author: $('#tts-author').value.trim(),
+            engine: $('#tts-engine').value,
             speaker: $('#tts-speaker').value,
             sample_rate: parseInt($('#tts-sample-rate').value, 10),
             format: $('#tts-format').value,
             split_chapters: $('#tts-split').checked,
+            accent: $('#tts-accent').checked,
             use_llm: $('#tts-use-llm').checked,
+            pause_each_sentence: $('#tts-pause-each').checked,
+            length_scale: parseFloat($('#tts-piper-speed').value) || 1.0,
         };
         const fd = new FormData();
         fd.append('file', state.file);
@@ -195,7 +248,34 @@
     function renderError(msg) {
         const root = $('#tts-result');
         root.classList.remove('empty');
-        root.innerHTML = `<div class="tts-error">${escapeHtml(msg)}</div>`;
+        const text = msg == null ? '' : String(msg);
+        root.innerHTML = `
+            <div class="tts-error">
+                <div class="tts-error__head">
+                    <span class="tts-error__title">Ошибка озвучивания</span>
+                    <button class="btn btn--secondary btn--sm" id="tts-copy-error">Скопировать</button>
+                </div>
+                <pre class="tts-error__text" id="tts-error-text">${escapeHtml(text)}</pre>
+            </div>`;
+        const copy = $('#tts-copy-error');
+        if (copy) {
+            copy.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(text);
+                } catch (_) {
+                    // Фолбэк, если Clipboard API недоступен (не-https и т.п.):
+                    // выделяем текст, чтобы пользователь скопировал руками.
+                    const sel = window.getSelection();
+                    const range = document.createRange();
+                    range.selectNodeContents($('#tts-error-text'));
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                }
+                const old = copy.textContent;
+                copy.textContent = 'Скопировано';
+                setTimeout(() => { copy.textContent = old; }, 1500);
+            });
+        }
     }
 
     function escapeHtml(s) {

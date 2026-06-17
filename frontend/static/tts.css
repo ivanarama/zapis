@@ -79,4 +79,15 @@
 }
 .tts-file__name { font-size: 13px; margin-bottom: 6px; color: var(--text-muted); }
 .tts-file audio { width: 100%; height: 34px; }
-.tts-error { color: var(--danger); padding: 16px; white-space: pre-wrap; }
+.tts-error { color: var(--danger); padding: 16px; }
+.tts-error__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.tts-error__title { font-weight: 600; }
+.tts-error__text {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    user-select: text;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.45;
+}

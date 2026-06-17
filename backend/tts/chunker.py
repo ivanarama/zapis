@@ -90,15 +90,31 @@ def _pack(sentences: list[str], max_chars: int) -> list[str]:
     return chunks
 
 
-def chunk_chapter(text: str, max_chars: int = DEFAULT_MAX_CHARS) -> list[list[str]]:
-    """Возвращает список абзацев, каждый — список фрагментов ≤ max_chars."""
+def chunk_chapter(
+    text: str, max_chars: int = DEFAULT_MAX_CHARS, per_sentence: bool = False
+) -> list[list[str]]:
+    """Возвращает список абзацев, каждый — список фрагментов ≤ max_chars.
+
+    per_sentence=True → каждое предложение становится отдельным фрагментом
+    (длинные всё равно режутся). Тогда pipeline ставит паузу после каждого
+    предложения, а не после пачки предложений. Синтез-вызовов больше, зато
+    речь размереннее — для аудиокниги это часто приятнее.
+    """
     paragraphs = [p.strip() for p in _PARA_SPLIT.split(text) if p.strip()]
     if not paragraphs:
         return []
     out: list[list[str]] = []
     for para in paragraphs:
         single_line = re.sub(r"\s+", " ", para).strip()
-        packed = _pack(_sentences(single_line), max_chars)
+        sentences = _sentences(single_line)
+        if per_sentence:
+            packed: list[str] = []
+            for s in sentences:
+                s = s.strip()
+                if s:
+                    packed.extend(_split_long(s, max_chars))
+        else:
+            packed = _pack(sentences, max_chars)
         if packed:
             out.append(packed)
     return out

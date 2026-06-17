@@ -21,7 +21,9 @@ from pathlib import Path
 from . import assemble, chunker, export
 from . import chapters as chapters_mod
 from . import normalize as normalize_mod
-from .engine import get_engine
+from . import spool as spool_mod
+from . import stress as stress_mod
+from .factory import get_engine
 
 log = logging.getLogger("zavuk.tts.pipeline")
 
@@ -41,8 +43,11 @@ async def synthesize(
     audio_format: str = "mp3",
     bitrate: int = 128000,
     split_chapters: bool = True,
-    put_accent: bool = True,
-    put_yo: bool = True,
+    engine_name: str = "silero",
+    synth_opts: dict | None = None,
+    accent: bool = False,
+    accent_model_size: str = "tiny",
+    per_sentence: bool = False,
     pauses: dict | None = None,
     chapter_pattern: str | None = None,
     normalizer: Normalizer | None = None,
@@ -51,15 +56,25 @@ async def synthesize(
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     ext = export.file_ext(audio_format)
-    eng = get_engine(device="cpu")
+    eng = get_engine(engine_name, device="cpu")
 
     yield {"stage": "model", "message": "Загрузка модели синтеза…", "percent": 0}
     await asyncio.to_thread(eng.initialize)
+    # Частоту может диктовать сам движок (Piper — частотой голоса); согласуем ДО
+    # нарезки и склейки, т.к. на ней считаются паузы, spool и кодирование.
+    sample_rate = await asyncio.to_thread(eng.resolve_sample_rate, speaker, sample_rate)
 
     chapters = chapters_mod.split_chapters(text, chapter_pattern)
     total_ch = len(chapters)
 
-    # --- Фаза 1: нормализация + нарезка (строим план, считаем фрагменты) ---
+    # --- Фаза 1: нормализация + ударения + нарезка (строим план, считаем фрагменты) ---
+    # Ударения расставляем здесь, на нормализованном тексте (чтобы числа-словами
+    # тоже получили «+»), и только для движков, понимающих «+»-разметку.
+    accentizer = (
+        stress_mod.get_accentizer(accent_model_size)
+        if accent and getattr(eng, "accepts_accent_marks", True)
+        else None
+    )
     prepared: list[tuple[str, list[list[str]]]] = []  # (title, paragraphs[chunks])
     total_chunks = 0
     for i, ch in enumerate(chapters, 1):
@@ -71,65 +86,102 @@ async def synthesize(
             "chapters_total": total_ch,
         }
         norm_text = await normalizer(ch.text) if normalizer else normalize_mod.normalize_text(ch.text)
-        paragraphs = chunker.chunk_chapter(norm_text)
+        if accentizer is not None:
+            norm_text = await asyncio.to_thread(accentizer.accentize, norm_text)
+        paragraphs = chunker.chunk_chapter(norm_text, per_sentence=per_sentence)
         total_chunks += sum(len(p) for p in paragraphs)
         prepared.append((ch.title, paragraphs))
+
+    # Выгружаем модель ударений до синтеза — на 8 ГБ незачем держать её в ОЗУ
+    # одновременно с движком синтеза (см. backend.tts.stress / memory: dev-machine-ram).
+    if accentizer is not None:
+        await asyncio.to_thread(accentizer.unload)
 
     if total_chunks == 0:
         yield {"stage": "error", "error": "Нет текста для озвучивания."}
         return
 
-    # --- Фаза 2: синтез + склейка + экспорт ---
+    # --- Фаза 2: синтез + потоковая склейка + экспорт ---
+    # Память держим постоянной: фрагменты главы копим во временном файле (spool),
+    # затем читаем обратно блоками и кодируем потоково — не материализуя весь
+    # звук книги в ОЗУ (см. backend.tts.spool / export.AudioStreamWriter).
     done_chunks = 0
     files: list[str] = []
-    all_parts: list = []  # для single-file режима
+    block = sample_rate * 10  # размер блока чтения spool, ~10 с аудио
 
-    for idx, (ch_title, paragraphs) in enumerate(prepared, 1):
-        chapter_parts: list = []
-        for para in paragraphs:
-            for chunk in para:
-                try:
-                    audio = await asyncio.to_thread(
-                        eng.synth, chunk, speaker, sample_rate, put_accent, put_yo
-                    )
-                except Exception as e:  # noqa: BLE001 — плохой фрагмент не должен рушить книгу
-                    log.warning("Сбой синтеза фрагмента: %s", e)
-                    audio = assemble.silence(pauses["sentence"], sample_rate)
-                chapter_parts.append(audio)
-                chapter_parts.append(assemble.silence(pauses["sentence"], sample_rate))
-                done_chunks += 1
-                yield {
-                    "stage": "synth",
-                    "message": f"Синтез: глава {idx} из {total_ch}",
-                    "percent": int(12 + 83 * done_chunks / total_chunks),
-                    "chapter": idx,
-                    "chapters_total": total_ch,
-                }
-            chapter_parts.append(assemble.silence(pauses["paragraph"], sample_rate))
-
-        chapter_audio = assemble.peak_normalize(assemble.concat(chapter_parts))
-
-        if split_chapters:
-            name = f"{idx:02d}. {export.sanitize_filename(ch_title, f'Глава {idx}')}.{ext}"
-            meta = {"title": ch_title, "album": title, "artist": author, "track": str(idx)}
-            await asyncio.to_thread(
-                export.write_audio, out_dir / name, chapter_audio, sample_rate, audio_format, bitrate, meta
-            )
-            files.append(name)
-            yield {"stage": "export", "message": f"Сохранена глава {idx}: {name}", "percent": int(12 + 83 * done_chunks / total_chunks)}
-        else:
-            all_parts.append(chapter_audio)
-            all_parts.append(assemble.silence(pauses["chapter"], sample_rate))
-
+    # В single-file режиме один writer открыт на всю книгу: главы дописываем
+    # в него по очереди.
+    single_writer: export.AudioStreamWriter | None = None
     if not split_chapters:
-        yield {"stage": "export", "message": "Сборка итогового файла…", "percent": 96}
-        final_audio = assemble.concat(all_parts)
         name = f"{export.sanitize_filename(title)}.{ext}"
         meta = {"title": title, "album": title, "artist": author}
-        await asyncio.to_thread(
-            export.write_audio, out_dir / name, final_audio, sample_rate, audio_format, bitrate, meta
-        )
+        single_writer = export.AudioStreamWriter(out_dir / name, sample_rate, audio_format, bitrate, meta)
         files = [name]
+
+    try:
+        for idx, (ch_title, paragraphs) in enumerate(prepared, 1):
+            # Проход 1: синтез главы во временный буфер (память ~ один фрагмент).
+            spool = spool_mod.PcmSpool(block)
+            try:
+                for para in paragraphs:
+                    for chunk in para:
+                        try:
+                            audio = await asyncio.to_thread(
+                                eng.synth, chunk, speaker, sample_rate, **(synth_opts or {})
+                            )
+                        except Exception as e:  # noqa: BLE001 — плохой фрагмент не должен рушить книгу
+                            log.warning("Сбой синтеза фрагмента: %s", e)
+                            audio = assemble.silence(pauses["sentence"], sample_rate)
+                        spool.write(audio)
+                        spool.write(assemble.silence(pauses["sentence"], sample_rate))
+                        done_chunks += 1
+                        yield {
+                            "stage": "synth",
+                            "message": f"Синтез: глава {idx} из {total_ch}",
+                            "percent": int(12 + 83 * done_chunks / total_chunks),
+                            "chapter": idx,
+                            "chapters_total": total_ch,
+                        }
+                    spool.write(assemble.silence(pauses["paragraph"], sample_rate))
+                spool.finish()
+                gain = spool.gain()  # глобальная по главе нормализация пика
+
+                # Проход 2: кодирование главы из буфера (память ~ один блок).
+                pct = int(12 + 83 * done_chunks / total_chunks)
+                if split_chapters:
+                    name = f"{idx:02d}. {export.sanitize_filename(ch_title, f'Глава {idx}')}.{ext}"
+                    meta = {"title": ch_title, "album": title, "artist": author, "track": str(idx)}
+
+                    def _encode_chapter(path=out_dir / name, meta=meta, spool=spool, gain=gain):
+                        with export.AudioStreamWriter(path, sample_rate, audio_format, bitrate, meta) as w:
+                            for blk in spool.blocks(gain):
+                                w.write(blk)
+
+                    await asyncio.to_thread(_encode_chapter)
+                    files.append(name)
+                    yield {"stage": "export", "message": f"Сохранена глава {idx}: {name}", "percent": pct}
+                else:
+                    def _append_chapter(spool=spool, gain=gain):
+                        for blk in spool.blocks(gain):
+                            single_writer.write(blk)
+                        single_writer.write(assemble.silence(pauses["chapter"], sample_rate))
+
+                    await asyncio.to_thread(_append_chapter)
+                    yield {"stage": "export", "message": f"Глава {idx} из {total_ch} готова", "percent": pct}
+            finally:
+                spool.close()
+
+        if single_writer is not None:
+            yield {"stage": "export", "message": "Финализация файла…", "percent": 98}
+            await asyncio.to_thread(single_writer.close)
+            single_writer = None
+    finally:
+        # Подстраховка: при ошибке закрыть контейнер, чтобы не оставить открытый дескриптор.
+        if single_writer is not None:
+            try:
+                single_writer.close()
+            except Exception:  # noqa: BLE001
+                pass
 
     yield {
         "stage": "done",

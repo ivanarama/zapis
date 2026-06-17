@@ -39,3 +39,16 @@ anthropic==0.100.0
 # Экспорт аудио — через PyAV (av), который уже приходит транзитивно с faster-whisper.
 razdel==0.5.0      # сегментация русских предложений для нарезки
 num2words==0.5.13  # числа → слова (rule-based нормализация без LLM)
+# Ударения для синтеза: ruaccent ставит «+» над ударными гласными (формат Silero).
+# Тянет transformers/tokenizers/safetensors — веса омограф-модели качаются с HF
+# при первом запуске (как Silero/GigaAM). tokenizers подтягивается под transformers
+# 5.x и совместим с faster-whisper (>=0.13,<1). Пины — под known-good venv311.
+ruaccent==1.5.8.3
+transformers==5.12.1
+tokenizers==0.22.2
+safetensors==0.8.0
+# Движок «качество» — Piper (MIT). Нативный wheel под Windows со встроенным
+# espeak-ng; голоса ru_RU качаются с HF при первом использовании. onnxruntime
+# уже стоит (gigaam). pathvalidate — единственная новая зависимость piper.
+piper-tts==1.4.2
+pathvalidate==3.3.1
