@@ -6,6 +6,36 @@ Starts FastAPI/uvicorn in a background thread, then opens a pywebview window.
 import multiprocessing
 import sys
 
+
+class ExportApi:
+    """Мост pywebview: методы, вызываемые из JS как ``window.pywebview.api.*``.
+
+    Нужен для экспорта TXT/SRT/VTT. Браузерный механизм скачивания
+    (``blob`` + программный клик по ``<a download>``) не работает во встроённом
+    WebView pywebview — поэтому файл сохраняем через нативный системный диалог.
+    """
+
+    def save_as(self, filename: str, content: str) -> dict:
+        import webview
+
+        if not webview.windows:
+            return {"ok": False, "error": "Окно недоступно"}
+        win = webview.windows[0]
+        try:
+            result = win.create_file_dialog(webview.SAVE_DIALOG, save_filename=filename)
+        except Exception as e:  # диалог выбросил исключение
+            return {"ok": False, "error": str(e)}
+        if not result:  # пользователь отменил
+            return {"ok": False, "cancelled": True}
+        # SAVE_DIALOG возвращает str, но на части бэкендов — кортеж/список.
+        path = result if isinstance(result, str) else result[0]
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(content)
+            return {"ok": True, "path": path}
+        except OSError as e:
+            return {"ok": False, "error": str(e)}
+
 if __name__ == "__main__":
     multiprocessing.freeze_support()
 
@@ -151,6 +181,7 @@ if __name__ == "__main__":
             height=700,
             min_size=(600, 400),
             easy_drag=False,
+            js_api=ExportApi(),
         )
         webview.start()
     except Exception:

@@ -395,10 +395,12 @@
     }
 
     function setupExport() {
+        const FILENAMES = { txt: 'transcript.txt', srt: 'subtitles.srt', vtt: 'subtitles.vtt' };
         $$('[data-export]').forEach((btn) => {
             btn.addEventListener('click', async () => {
                 if (!state.result) return;
                 const fmt = btn.dataset.export;
+                const filename = FILENAMES[fmt] || `transcript.${fmt}`;
                 try {
                     const res = await fetch(`/api/export/${fmt}`, {
                         method: 'POST',
@@ -410,20 +412,40 @@
                         alert('Ошибка экспорта: ' + (err.error || res.statusText));
                         return;
                     }
-                    const blob = await res.blob();
+                    const content = await res.text();
+                    // Desktop (pywebview): нативный диалог «Сохранить как» —
+                    // браузерный blob + <a download> во встроённом WebView не работает.
+                    if (window.pywebview && window.pywebview.api && window.pywebview.api.save_as) {
+                        const r = await window.pywebview.api.save_as(filename, content);
+                        if (r && r.ok) {
+                            flash(btn, 'Сохранено ✓');
+                        } else if (r && r.error) {
+                            alert('Не удалось сохранить файл: ' + r.error);
+                        }
+                        return;
+                    }
+                    // Fallback: обычный браузер (запуск без pywebview, отладка).
+                    const blob = new Blob([content], {
+                        type: res.headers.get('Content-Type') || 'text/plain',
+                    });
                     const url = URL.createObjectURL(blob);
                     const link = document.createElement('a');
                     link.href = url;
-                    const disposition = res.headers.get('Content-Disposition') || '';
-                    const match = disposition.match(/filename=(.+)/);
-                    link.download = match ? match[1] : `transcript.${fmt}`;
+                    link.download = filename;
                     link.click();
                     URL.revokeObjectURL(url);
+                    flash(btn, 'Сохранено ✓');
                 } catch (e) {
                     alert('Ошибка экспорта: ' + e.message);
                 }
             });
         });
+    }
+
+    function flash(btn, text) {
+        const original = btn.textContent;
+        btn.textContent = text;
+        setTimeout(() => { btn.textContent = original; }, 1200);
     }
 
     function setupAIPresets() {
