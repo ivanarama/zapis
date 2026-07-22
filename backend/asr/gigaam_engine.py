@@ -371,6 +371,7 @@ class GigaamEngine:
         self._longform: Optional[LongformCTC] = None
         self._decoder: Optional[CTCDecoderWithLM] = None
         self._loaded = False
+        self._loading = False
         self._error: Optional[str] = None
         self._needs_install = False
 
@@ -399,11 +400,14 @@ class GigaamEngine:
             return {"status": "error", "engine": self.name, "error": self._error}
         if self._loaded:
             return {"status": "ready", "engine": self.name, "detail": f"GigaAM {self._version}"}
-        return {"status": "loading", "engine": self.name, "detail": f"GigaAM {self._version}"}
+        if self._loading:
+            return {"status": "loading", "engine": self.name, "detail": f"GigaAM {self._version}"}
+        return {"status": "idle", "engine": self.name, "detail": f"GigaAM {self._version}"}
 
     def initialize(self) -> None:
         if self._loaded or self._error or self._needs_install:
             return
+        self._loading = True
         try:
             if self._device == "auto":
                 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -429,6 +433,8 @@ class GigaamEngine:
         except Exception as exc:
             log.exception("Failed to load GigaAM models")
             self._error = str(exc)
+        finally:
+            self._loading = False
 
     def transcribe(
         self,
@@ -436,6 +442,10 @@ class GigaamEngine:
         filename: str,
         language: str = "ru",
     ) -> TranscribeResult:
+        # Ленивая загрузка при первом обращении (как у Whisper): на старте
+        # приложения модель не грузим, чтобы озвучка не платила за ASR.
+        if not self._loaded and not self._error and not self._needs_install:
+            self.initialize()
         if self._error:
             raise RuntimeError(f"GigaAM не инициализирован: {self._error}")
         if not self._loaded or self._decoder is None:

@@ -1,4 +1,4 @@
-from .client import format_llm_user_error, stream_chat
+from .client import complete_chat, format_llm_user_error, stream_chat
 from .prompts import (
     PRESET_KEYS,
     build_messages_for_custom,
@@ -11,6 +11,7 @@ __all__ = [
     "PRESET_KEYS",
     "build_messages_for_custom",
     "build_messages_for_preset",
+    "complete_chat",
     "default_prompts",
     "format_llm_user_error",
     "get_prompts",

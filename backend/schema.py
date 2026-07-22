@@ -107,6 +107,8 @@ class PromptsSettings(BaseModel):
     telegram_post: PromptTemplate = PromptTemplate()
     article: PromptTemplate = PromptTemplate()
     custom_system: str = ""
+    # Промпт LLM-нормализации текста перед озвучиванием (пусто = встроенный).
+    tts_normalize: PromptTemplate = PromptTemplate()
 
 
 class AppSettings(BaseModel):
@@ -115,8 +117,69 @@ class AppSettings(BaseModel):
     theme: Literal["dark", "light"] = "dark"
 
 
+# ---------- TTS (озвучивание текста) ----------
+
+
+class SileroSettings(BaseModel):
+    version: Literal["v4_ru", "v3_1_ru"] = "v4_ru"
+    speaker: Literal["aidar", "baya", "kseniya", "xenia", "eugene"] = "baya"
+    sample_rate: Literal[8000, 24000, 48000] = 48000
+    put_accent: bool = True
+    put_yo: bool = True
+
+
+class PiperSettings(BaseModel):
+    # speaker — имя голоса rhasspy/piper-voices (тип str: список голосов может
+    # расширяться). length_scale > 1 — медленнее (для размеренного чтения).
+    speaker: str = "ru_RU-ruslan-medium"
+    length_scale: float = 1.0
+
+
+class TTSPauses(BaseModel):
+    sentence: int = 300
+    paragraph: int = 700
+    chapter: int = 1500
+
+
+class TTSNormalize(BaseModel):
+    # use_llm=False → rule-based (num2words). True → LLM по профилям из llm.profiles.
+    use_llm: bool = False
+
+
+class TTSAccent(BaseModel):
+    # Расстановка ударений ruaccent перед синтезом (формат «+» понимает Silero).
+    # model_size — омограф-модель ruaccent (tiny бережёт ОЗУ). Тип str, а не
+    # Literal: набор размеров зависит от версии ruaccent, неизвестное значение
+    # безопасно откатывается на отсутствие ударений (см. backend.tts.stress).
+    enabled: bool = True
+    model_size: str = "tiny"
+
+
+class TTSExport(BaseModel):
+    format: Literal["mp3", "m4b", "m4a", "wav"] = "mp3"
+    split_chapters: bool = True
+    bitrate: int = 128000
+
+
+class TTSSettings(BaseModel):
+    engine: Literal["silero", "piper"] = "silero"
+    language: str = "ru"
+    device: Literal["auto", "cpu", "cuda"] = "cpu"
+    silero: SileroSettings = SileroSettings()
+    piper: PiperSettings = PiperSettings()
+    pauses: TTSPauses = TTSPauses()
+    # Резать по предложениям → пауза pauses.sentence после каждого предложения
+    # (а не после пачки). Чуть медленнее синтез, зато речь размереннее.
+    pause_each_sentence: bool = False
+    normalize: TTSNormalize = TTSNormalize()
+    accent: TTSAccent = TTSAccent()
+    export: TTSExport = TTSExport()
+    chapter_pattern: str = ""  # пусто = встроенный паттерн глав
+
+
 class Settings(BaseModel):
     app: AppSettings = AppSettings()
     asr: ASRSettings = ASRSettings()
     llm: LLMSettings = LLMSettings()
     prompts: PromptsSettings = PromptsSettings()
+    tts: TTSSettings = TTSSettings()

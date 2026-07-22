@@ -1,0 +1,93 @@
+/* Стили режима «Озвучка». Переменные темы (var(--…)) объявлены в style.css. */
+
+/* Переключатель режимов в шапке */
+.mode-switch {
+    display: flex;
+    gap: 4px;
+    background: var(--bg-elev-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 3px;
+}
+.mode-btn {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    padding: 6px 16px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.mode-btn:hover { color: var(--text); }
+.mode-btn--active { background: var(--accent); color: var(--accent-text); }
+
+/* Поле-чекбокс (горизонтальное) */
+.field--check {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+.field--check input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    accent-color: var(--accent);
+}
+.field--check > span { font-size: 13px; color: var(--text-muted); }
+
+/* Прогресс-бар озвучивания */
+.progress--bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+}
+.progress__track {
+    width: 100%;
+    height: 8px;
+    background: var(--bg-elev-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    overflow: hidden;
+}
+.progress__fill {
+    height: 100%;
+    width: 0;
+    background: var(--accent);
+    transition: width 0.25s ease;
+}
+
+/* Результат */
+.tts-result { padding: 16px; overflow-y: auto; height: 100%; }
+.tts-done__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+.tts-done__path {
+    color: var(--text-subtle);
+    font-size: 12px;
+    word-break: break-all;
+    margin-bottom: 14px;
+}
+.tts-file {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+}
+.tts-file__name { font-size: 13px; margin-bottom: 6px; color: var(--text-muted); }
+.tts-file audio { width: 100%; height: 34px; }
+.tts-error { color: var(--danger); padding: 16px; }
+.tts-error__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.tts-error__title { font-weight: 600; }
+.tts-error__text {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    user-select: text;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.45;
+}

@@ -1,8 +1,22 @@
-# Zapis Build Script for Windows
+﻿# Zapis Build Script for Windows
 
 $ErrorActionPreference = "Stop"
 
 Write-Host "Building Zapis.exe..." -ForegroundColor Cyan
+
+# Resolve Python: prefer the project venv (.venv), else python on PATH.
+# Голый pip не на PATH, если venv не активирован, — поэтому зовём
+# "<python> -m pip", который сам ставит в нужное окружение без активации.
+if (Test-Path ".venv\Scripts\python.exe") {
+    $pyExe = (Resolve-Path ".venv\Scripts\python.exe").Path
+} else {
+    $pyExe = (Get-Command python -ErrorAction SilentlyContinue).Source
+}
+if (-not $pyExe) {
+    Write-Host "ERROR: Python не найден. Создай venv:  python -m venv .venv" -ForegroundColor Red
+    exit 1
+}
+Write-Host "Using Python: $pyExe" -ForegroundColor Cyan
 
 # Clean previous build.
 # ВАЖНО: НЕ удаляем dist/ целиком — там лежат пользовательские
@@ -13,7 +27,7 @@ if (Test-Path "zapis.spec") { Remove-Item -Force "zapis.spec" }
 if (Test-Path "dist\Zapis.exe") { Remove-Item -Force "dist\Zapis.exe" }
 
 Write-Host "Installing dependencies..." -ForegroundColor Yellow
-pip install -r requirements.txt
+& $pyExe -m pip install -r requirements.txt
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: pip install -r requirements.txt failed. Build aborted." -ForegroundColor Red
     exit 1
@@ -23,7 +37,7 @@ if ($LASTEXITCODE -ne 0) {
 # It actually runs fine on numpy 2.x, so install it without its (stale) deps;
 # pygtrie (its only real dependency) is already pinned in requirements.txt.
 Write-Host "Installing pyctcdecode (no-deps)..." -ForegroundColor Yellow
-pip install --no-deps pyctcdecode==0.5.0
+& $pyExe -m pip install --no-deps pyctcdecode==0.5.0
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: pip install for pyctcdecode failed. Build aborted." -ForegroundColor Red
     exit 1
@@ -36,15 +50,15 @@ if ($LASTEXITCODE -ne 0) {
 # cloning the repo twice (the clone is where a flaky github.com 500 would bite).
 # Keep the commit below in sync with requirements.txt.
 # v3_ctc lives in _MODEL_HASHES (dict, new GitHub gigaam) or _MODEL_NAMES (list, old PyPI).
-python -c "import gigaam, sys; reg = getattr(gigaam, '_MODEL_HASHES', None) or getattr(gigaam, '_MODEL_NAMES', ()); sys.exit(0 if 'v3_ctc' in reg else 1)"
+& $pyExe -c "import gigaam, sys; reg = getattr(gigaam, '_MODEL_HASHES', None) or getattr(gigaam, '_MODEL_NAMES', ()); sys.exit(0 if 'v3_ctc' in reg else 1)"
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Installed gigaam lacks v3_ctc -- reinstalling from GitHub..." -ForegroundColor Yellow
-    pip install --force-reinstall --no-deps "git+https://github.com/salute-developers/GigaAM.git@6e4b027c6fb554e09e8b9059b757a175295ab879"
+    & $pyExe -m pip install --force-reinstall --no-deps "git+https://github.com/salute-developers/GigaAM.git@6e4b027c6fb554e09e8b9059b757a175295ab879"
     if ($LASTEXITCODE -ne 0) {
         Write-Host "ERROR: pip install for gigaam failed (transient github.com 500? just retry the build). Aborted." -ForegroundColor Red
         exit 1
     }
-    python -c "import gigaam, sys; reg = getattr(gigaam, '_MODEL_HASHES', None) or getattr(gigaam, '_MODEL_NAMES', ()); sys.exit(0 if 'v3_ctc' in reg else 1)"
+    & $pyExe -c "import gigaam, sys; reg = getattr(gigaam, '_MODEL_HASHES', None) or getattr(gigaam, '_MODEL_NAMES', ()); sys.exit(0 if 'v3_ctc' in reg else 1)"
     if ($LASTEXITCODE -ne 0) {
         Write-Host "ERROR: gigaam still does not expose v3_ctc after reinstall. Aborted." -ForegroundColor Red
         exit 1
@@ -57,7 +71,7 @@ Write-Host "GigaAM v3_ctc present." -ForegroundColor Green
 $kenlmWheels = Get-ChildItem -Path "wheels" -Filter "kenlm-*.whl" -ErrorAction SilentlyContinue
 if ($kenlmWheels) {
     Write-Host "Installing kenlm from local wheel..." -ForegroundColor Yellow
-    pip install $kenlmWheels[0].FullName
+    & $pyExe -m pip install $kenlmWheels[0].FullName
     if ($LASTEXITCODE -ne 0) {
         Write-Host "WARNING: kenlm wheel install failed, continuing without it." -ForegroundColor Yellow
     }
@@ -69,16 +83,41 @@ if ($kenlmWheels) {
 $specLines = @(
     '# -*- mode: python ; coding: utf-8 -*-'
     ''
+    'from PyInstaller.utils.hooks import collect_all'
+    ''
     'block_cipher = None'
+    ''
+    '# Пакеты с данными/нативными или динамическими модулями, которым одних'
+    '# hiddenimports мало: ruaccent (ударения) + стек transformers/tokenizers/'
+    '# safetensors, и piper (внутри espeak-ng-data + нативный espeakbridge).'
+    '# collect_all забирает их целиком. Увеличивает размер exe; сами веса моделей'
+    '# НЕ бандлятся -- качаются в кэш рядом с приложением при первом запуске.'
+    "_accent_pkgs = ('transformers', 'tokenizers', 'safetensors', 'ruaccent', 'piper')"
+    '_accent_datas, _accent_bins, _accent_hidden = [], [], []'
+    'for _p in _accent_pkgs:'
+    '    _d, _b, _h = collect_all(_p)'
+    '    _accent_datas += _d; _accent_bins += _b; _accent_hidden += _h'
+    ''
+    '# ruaccent ships a 161 MB koziev/.../ruword2tags.db. RuleEngine.load() opens'
+    '# it (sqlite connect) but our process_all path never queries it, so drop it'
+    '# and substitute an empty 0-byte SQLite stub (valid empty DB) -- keeps'
+    '# RuleEngine.load() from failing while shedding 161 MB.'
+    'import os as _os, tempfile as _tf'
+    "_stub_dir = _os.path.join(_tf.gettempdir(), 'zapis_ruaccent_stub')"
+    '_os.makedirs(_stub_dir, exist_ok=True)'
+    "_stub_db = _os.path.join(_stub_dir, 'ruword2tags.db')"
+    "open(_stub_db, 'wb').close()"
+    "_accent_datas = [(_s, _dd) for (_s, _dd) in _accent_datas if _os.path.basename(_s).lower() != 'ruword2tags.db']"
+    "_accent_datas.append((_stub_db, _os.path.join('ruaccent', 'koziev', 'rupostagger', 'database')))"
     ''
     'a = Analysis('
     "    ['main.py'],"
     '    pathex=[],'
-    '    binaries=[],'
+    '    binaries=_accent_bins,'
     '    datas=['
     "        ('frontend', 'frontend'),"
     "        ('settings.json', '.'),"
-    '    ],'
+    '    ] + _accent_datas,'
     '    hiddenimports=['
     '        # GigaAM stack'
     "        'gigaam',"
@@ -117,11 +156,42 @@ $specLines = @(
     "        'backend.config',"
     "        'backend.schema',"
     "        'backend.formats',"
-    '    ],'
+    '        # TTS (озвучивание) -- Silero грузится через torch.hub в рантайме'
+    "        'backend.tts',"
+    "        'backend.tts.engine',"
+    "        'backend.tts.pipeline',"
+    "        'backend.tts.reader',"
+    "        'backend.tts.chapters',"
+    "        'backend.tts.normalize',"
+    "        'backend.tts.normalize_cache',"
+    "        'backend.tts.chunker',"
+    "        'backend.tts.assemble',"
+    "        'backend.tts.export',"
+    "        'backend.tts.spool',"
+    "        'backend.tts.stress',"
+    "        'razdel',"
+    '        # Ударения: ruaccent + его ML-стек (данные забирает collect_all выше)'
+    "        'ruaccent',"
+    "        'pycrfsuite',"
+    '        # Piper (движок «качество») + фабрика выбора движка'
+    "        'backend.tts.factory',"
+    "        'backend.tts.engine_piper',"
+    "        'piper',"
+    "        'piper.voice',"
+    "        'piper.config',"
+    "        'piper.download_voices',"
+    "        'piper.phonemize_espeak',"
+    "        'piper.espeakbridge',"
+    "        'pathvalidate',"
+    '        # num2words языковые модули импортируются динамически -- см. hooks/hook-num2words.py'
+    "        'num2words',"
+    '    ] + _accent_hidden,'
     "    hookspath=['hooks'],"
     '    hooksconfig={},'
     '    runtime_hooks=[],'
-    "    excludes=['test', 'tests', 'pytest', 'jupyter', 'tensorboard'],"
+    '        # sympy/networkx -- torch-зависимости только для compile/fx,'
+    '        # в инференсе не нужны (import torch их не грузит). Исключаем.'
+    "    excludes=['test', 'tests', 'pytest', 'jupyter', 'tensorboard', 'sympy', 'networkx'],"
     '    win_no_prefer_redirects=False,'
     '    win_private_assemblies=False,'
     '    cipher=block_cipher,'
@@ -159,7 +229,7 @@ Write-Host "Live log: Get-Content C:\Projects\Zapis\build.log -Tail 5 -Wait" -Fo
 # PyInstaller sometimes catches "Aborted by user request" because the parent
 # PowerShell session sends CTRL_BREAK on large output. Run in a separate cmd
 # window so the child process gets its own console and process group.
-$pyExe = (Get-Command python).Source
+# $pyExe уже определён выше (venv-aware).
 $cmdLine = "`"$pyExe`" -u -m PyInstaller zapis.spec --clean --noconfirm > build.log 2>&1"
 $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c",$cmdLine -Wait -PassThru
 if ($proc.ExitCode -ne 0) {

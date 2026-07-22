@@ -37,6 +37,7 @@
             renderASR();
             renderLLM();
             renderPrompts();
+            renderTTS();
             renderAppearance();
         } catch (e) {
             console.error('Settings load failed:', e);
@@ -138,11 +139,75 @@
         return out;
     }
 
+    function renderTTS() {
+        const tts = currentSettings.tts || {};
+        const sil = tts.silero || {};
+        const pp = tts.piper || {};
+        const ex = tts.export || {};
+        const pz = tts.pauses || {};
+        const nz = tts.normalize || {};
+        const ac = tts.accent || {};
+        $('#settings-tts-engine').value = tts.engine || 'silero';
+        $('#settings-tts-piper-speaker').value = pp.speaker || 'ru_RU-ruslan-medium';
+        $('#settings-tts-piper-speed').value = pp.length_scale ?? 1.0;
+        $('#settings-tts-pause-each').checked = !!tts.pause_each_sentence;
+        $('#settings-tts-speaker').value = sil.speaker || 'baya';
+        $('#settings-tts-rate').value = String(sil.sample_rate || 48000);
+        $('#settings-tts-format').value = ex.format || 'mp3';
+        $('#settings-tts-bitrate').value = ex.bitrate ?? 128000;
+        $('#settings-tts-split').checked = ex.split_chapters !== false;
+        $('#settings-tts-accent').checked = ac.enabled !== false;
+        $('#settings-tts-accent-size').value = ac.model_size || 'tiny';
+        $('#settings-tts-use-llm').checked = !!nz.use_llm;
+        $('#settings-tts-pause-sentence').value = pz.sentence ?? 300;
+        $('#settings-tts-pause-paragraph').value = pz.paragraph ?? 700;
+        $('#settings-tts-pause-chapter').value = pz.chapter ?? 1500;
+        $('#settings-tts-normalize-prompt').value =
+            (currentPrompts.tts_normalize && currentPrompts.tts_normalize.system) || '';
+    }
+
+    function collectTTS() {
+        return {
+            ...(currentSettings.tts || {}),
+            engine: $('#settings-tts-engine').value,
+            pause_each_sentence: $('#settings-tts-pause-each').checked,
+            silero: {
+                ...((currentSettings.tts && currentSettings.tts.silero) || {}),
+                speaker: $('#settings-tts-speaker').value,
+                sample_rate: parseInt($('#settings-tts-rate').value, 10) || 48000,
+            },
+            piper: {
+                ...((currentSettings.tts && currentSettings.tts.piper) || {}),
+                speaker: $('#settings-tts-piper-speaker').value,
+                length_scale: parseFloat($('#settings-tts-piper-speed').value) || 1.0,
+            },
+            export: {
+                ...((currentSettings.tts && currentSettings.tts.export) || {}),
+                format: $('#settings-tts-format').value,
+                bitrate: parseInt($('#settings-tts-bitrate').value, 10) || 128000,
+                split_chapters: $('#settings-tts-split').checked,
+            },
+            normalize: { use_llm: $('#settings-tts-use-llm').checked },
+            accent: {
+                enabled: $('#settings-tts-accent').checked,
+                model_size: $('#settings-tts-accent-size').value,
+            },
+            pauses: {
+                sentence: parseInt($('#settings-tts-pause-sentence').value, 10) || 0,
+                paragraph: parseInt($('#settings-tts-pause-paragraph').value, 10) || 0,
+                chapter: parseInt($('#settings-tts-pause-chapter').value, 10) || 0,
+            },
+        };
+    }
+
     function renderAppearance() {
         $('#settings-theme').value = (currentSettings.app && currentSettings.app.theme) || 'dark';
     }
 
     async function saveAll() {
+        const promptsObj = collectPrompts();
+        promptsObj.tts_normalize = { system: $('#settings-tts-normalize-prompt').value };
+
         const newSettings = {
             ...currentSettings,
             app: {
@@ -164,7 +229,8 @@
                 temperature: parseFloat($('#settings-temperature').value) || 0.3,
                 max_tokens: parseInt($('#settings-max-tokens').value, 10) || 4096,
             },
-            prompts: collectPrompts(),
+            prompts: promptsObj,
+            tts: collectTTS(),
         };
 
         try {
