@@ -189,9 +189,13 @@ $specLines = @(
     "    hookspath=['hooks'],"
     '    hooksconfig={},'
     '    runtime_hooks=[],'
-    '        # sympy/networkx -- torch-зависимости только для compile/fx,'
-    '        # в инференсе не нужны (import torch их не грузит). Исключаем.'
-    "    excludes=['test', 'tests', 'pytest', 'jupyter', 'tensorboard', 'sympy', 'networkx'],"
+    '        # networkx -- нужен только torch._dynamo (torch.compile), в инференсе не используется.'
+    '        # ВНИМАНИЕ: sympy ИСКЛЮЧАТЬ НЕЛЬЗЯ. gigaam.encoder импортирует'
+    '        # torch.utils.checkpoint, который транзитивно тянет'
+    '        # torch.fx.experimental.symbolic_shapes -> torch.utils._sympy.functions -> import sympy.'
+    '        # Без sympy GigaAM падает при загрузке модели:'
+    '        #   hydra.errors.InstantiationException: gigaam.encoder.ConformerEncoder'
+    "    excludes=['test', 'tests', 'pytest', 'jupyter', 'tensorboard', 'networkx'],"
     '    win_no_prefer_redirects=False,'
     '    win_private_assemblies=False,'
     '    cipher=block_cipher,'
