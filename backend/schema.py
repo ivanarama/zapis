@@ -156,6 +156,12 @@ class SberSettings(BaseModel):
     voice: str = "Nazar"
 
 
+class EdgeSettings(BaseModel):
+    # Облако: Microsoft Edge neural TTS через пакет edge-tts. Без API-ключа и без
+    # регистрации — публичный endpoint «Читать вслух». voice — ru-RU-* neural.
+    voice: str = "ru-RU-DmitryNeural"
+
+
 class TTSPauses(BaseModel):
     sentence: int = 300
     paragraph: int = 700
@@ -183,13 +189,14 @@ class TTSExport(BaseModel):
 
 
 class TTSSettings(BaseModel):
-    engine: Literal["silero", "piper", "yandex", "sber"] = "silero"
+    engine: Literal["silero", "piper", "yandex", "sber", "edge"] = "silero"
     language: str = "ru"
     device: Literal["auto", "cpu", "cuda"] = "cpu"
     silero: SileroSettings = SileroSettings()
     piper: PiperSettings = PiperSettings()
     yandex: YandexSettings = YandexSettings()
     sber: SberSettings = SberSettings()
+    edge: EdgeSettings = EdgeSettings()
     pauses: TTSPauses = TTSPauses()
     # Резать по предложениям → пауза pauses.sentence после каждого предложения
     # (а не после пачки). Чуть медленнее синтез, зато речь размереннее.

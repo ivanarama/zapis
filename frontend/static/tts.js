@@ -88,6 +88,7 @@
         if (engine === 'piper') saved = tts.piper && tts.piper.speaker;
         else if (engine === 'yandex') saved = tts.yandex && tts.yandex.voice;
         else if (engine === 'sber') saved = tts.sber && tts.sber.voice;
+        else if (engine === 'edge') saved = tts.edge && tts.edge.voice;
         else saved = tts.silero && tts.silero.speaker;
 
         const sel = $('#tts-speaker');
@@ -155,6 +156,11 @@
             });
             if (!res.ok) throw new Error('HTTP ' + res.status);
             await loadVoices();  // обновит needs_config/голос
+            // loadVoices ставит движок из сохранённых настроек (пока ещё silero,
+            // т.к. выбор движка персистится только при синтезе) — возвращаем
+            // выбор пользователя, иначе список сбрасывается на Silero.
+            const es = $('#tts-engine');
+            if (es && es.value !== engine) { es.value = engine; applyEngine(); }
             if (hint) { hint.textContent = 'Ключи сохранены.'; hint.style.color = ''; }
         } catch (e) {
             alert('Не удалось сохранить ключи: ' + (e.message || e));

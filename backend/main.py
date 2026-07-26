@@ -527,6 +527,7 @@ async def tts_voices():
             "piper": {"speakers": PIPER_RU_VOICES, "fixed_rate": True},
             "yandex": _cloud_engine_info("yandex"),
             "sber": _cloud_engine_info("sber"),
+            "edge": _cloud_engine_info("edge"),
         },
         "speakers": SPEAKERS_V4_RU,  # совместимость со старым фронтендом
         "tts": ts.model_dump(),
@@ -554,17 +555,23 @@ async def tts_synthesize(file: UploadFile = File(...), options: str = Form("{}")
     title = (opts.get("title") or "").strip() or Path(file.filename or "Книга").stem or "Книга"
     author = (opts.get("author") or "").strip()
     engine = (opts.get("engine") or ts.engine or "silero").lower()
-    if engine not in ("silero", "piper", "yandex", "sber"):
+    if engine not in ("silero", "piper", "yandex", "sber", "edge"):
         engine = "silero"
     if engine == "piper":
         speaker = opts.get("speaker") or ts.piper.speaker
         # Частоту для Piper выбирает сам голос — pipeline согласует её (resolve).
         sample_rate = int(opts.get("sample_rate") or ts.silero.sample_rate)
         synth_opts = {"length_scale": float(opts.get("length_scale") or ts.piper.length_scale)}
-    elif engine in ("yandex", "sber"):
-        # Секреты движок берёт сам из settings; в формуле их НЕ передаём.
-        # Частоту диктует провайдер — pipeline согласует через resolve_sample_rate.
-        speaker = opts.get("speaker") or (ts.yandex.voice if engine == "yandex" else ts.sber.voice)
+    elif engine in ("yandex", "sber", "edge"):
+        # Секреты движок берёт сам из settings (edge-tts — без секретов); в формуле
+        # их НЕ передаём. Частоту диктует провайдер — pipeline согласует (resolve).
+        if engine == "yandex":
+            fallback_voice = ts.yandex.voice
+        elif engine == "sber":
+            fallback_voice = ts.sber.voice
+        else:
+            fallback_voice = ts.edge.voice
+        speaker = opts.get("speaker") or fallback_voice
         sample_rate = 0
         synth_opts = {}
     else:
@@ -595,6 +602,8 @@ async def tts_synthesize(file: UploadFile = File(...), options: str = Form("{}")
         persist["yandex"] = {"voice": speaker}
     elif engine == "sber":
         persist["sber"] = {"voice": speaker}
+    elif engine == "edge":
+        persist["edge"] = {"voice": speaker}
     else:
         persist["silero"] = {"speaker": speaker, "sample_rate": sample_rate}
     try:
@@ -648,7 +657,7 @@ async def tts_test(body: TTSTestBody):
     """Синтез короткой фразы — проверка настроек/ключей движка. Не бросает 5xx,
     чтобы UI мог прочитать JSON с ошибкой."""
     name = (body.engine or "").lower()
-    if name not in ("silero", "piper", "yandex", "sber"):
+    if name not in ("silero", "piper", "yandex", "sber", "edge"):
         return JSONResponse({"ok": False, "error": "Неизвестный движок"}, status_code=400)
     try:
         eng = get_tts_engine(name)
@@ -658,6 +667,8 @@ async def tts_test(body: TTSTestBody):
             speaker = body.speaker or ts.yandex.voice
         elif name == "sber":
             speaker = body.speaker or ts.sber.voice
+        elif name == "edge":
+            speaker = body.speaker or ts.edge.voice
         elif name == "piper":
             speaker = body.speaker or ts.piper.speaker
         else:

@@ -24,6 +24,10 @@ def get_engine(name: str = "silero", device: str = "cpu"):
         from . import engine_sber
 
         return engine_sber.get_engine(device=device)
+    if n == "edge":
+        from . import engine_edge
+
+        return engine_edge.get_engine(device=device)
     from . import engine
 
     return engine.get_engine(device=device)
