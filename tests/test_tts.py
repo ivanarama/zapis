@@ -150,6 +150,26 @@ def test_pipeline_propagates_cloud_error():
         P.get_engine = orig
 
 
+def test_edge_chunk_failure_threshold():
+    """Транзиентные провалы → тишина (книга продолжается); N подряд → CloudTtsError."""
+    import numpy as np
+
+    from backend.tts.engine_edge import EdgeEngine
+
+    e = EdgeEngine()
+    # FAIL_THRESHOLD-1 провалов подряд — возвращаем тишину, без исключения.
+    for _ in range(EdgeEngine.FAIL_THRESHOLD - 1):
+        out = e._on_chunk_failure("транзиентный сбой")
+        assert out.dtype == np.float32 and len(out) > 0, "должна вернуться тишина"
+    # FAIL_THRESHOLD-й подряд — аборт.
+    raised = False
+    try:
+        e._on_chunk_failure("ещё сбой")
+    except CloudTtsError:
+        raised = True
+    assert raised, "после порога должен бросать CloudTtsError"
+
+
 def _run():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0
