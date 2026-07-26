@@ -9,6 +9,7 @@ import os
 import re
 import sys
 import threading
+import uuid
 from pathlib import Path
 from typing import Optional
 
@@ -19,6 +20,7 @@ from pydantic import BaseModel, Field
 
 from . import formats
 from . import transcripts as transcript_store
+from . import tts_runs
 from .asr import factory as asr_factory
 from .config import get_settings, save_settings, update_settings
 from .llm import (
@@ -611,7 +613,8 @@ async def tts_synthesize(file: UploadFile = File(...), options: str = Form("{}")
     except Exception:  # noqa: BLE001
         log.warning("Не удалось сохранить настройки озвучки", exc_info=True)
 
-    out_dir = _audiobooks_dir() / tts_export.sanitize_filename(title)
+    # Уникальная папка на запуск — повтор той же книги не затирает предыдущую озвучку.
+    out_dir = _audiobooks_dir() / f"{tts_export.sanitize_filename(title)}_{uuid.uuid4().hex[:8]}"
     normalizer = _build_tts_normalizer() if use_llm else None
 
     async def event_source():
@@ -635,6 +638,16 @@ async def tts_synthesize(file: UploadFile = File(...), options: str = Form("{}")
                 chapter_pattern=chapter_pattern,
                 normalizer=normalizer,
             ):
+                if ev.get("done"):
+                    try:
+                        run = tts_runs.create_run(
+                            title=title, author=author, engine=engine, voice=speaker,
+                            output_dir=ev.get("output_dir") or str(out_dir),
+                            files=ev.get("files") or [],
+                        )
+                        ev["run_id"] = run["id"]
+                    except Exception:  # noqa: BLE001
+                        log.warning("Не удалось записать озвучку в историю", exc_info=True)
                 yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
         except Exception as exc:  # noqa: BLE001
             log.exception("Озвучивание не удалось")
@@ -714,6 +727,27 @@ async def tts_audio(path: str):
     if not p.is_file():
         return JSONResponse({"error": "Файл не найден"}, status_code=404)
     return FileResponse(str(p))
+
+
+@app.get("/api/tts/runs")
+async def tts_runs_list():
+    """История озвучек (зеркало списка расшифровок)."""
+    return {"runs": tts_runs.list_runs()}
+
+
+@app.get("/api/tts/runs/{rid}")
+async def tts_runs_get(rid: str):
+    rec = tts_runs.get_run(rid)
+    if not rec:
+        return JSONResponse({"error": "Озвучка не найдена"}, status_code=404)
+    return rec
+
+
+@app.delete("/api/tts/runs/{rid}")
+async def tts_runs_delete(rid: str):
+    if not tts_runs.delete_run(rid):
+        return JSONResponse({"error": "Озвучка не найдена"}, status_code=404)
+    return {"ok": True}
 
 
 def run_server(host: str = "127.0.0.1", port: Optional[int] = None):

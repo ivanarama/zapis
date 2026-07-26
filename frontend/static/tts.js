@@ -6,7 +6,7 @@
     const $ = (sel) => document.querySelector(sel);
     const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
-    const state = { file: null, busy: false };
+    const state = { file: null, busy: false, runs: [] };
 
     document.addEventListener('DOMContentLoaded', init);
 
@@ -26,6 +26,7 @@
         const cs = $('#tts-cloud-save'); if (cs) cs.addEventListener('click', saveCloudCreds);
         const ct = $('#tts-cloud-test'); if (ct) ct.addEventListener('click', testCloud);
         $('#btn-synthesize').addEventListener('click', synthesize);
+        loadRuns();  // история озвучек
     }
 
     function setupModeSwitch() {
@@ -253,7 +254,7 @@
         try {
             await streamSynthesis(fd, {
                 onProgress: (d) => setProgress(d.percent, d.message),
-                onDone: (d) => { setProgress(100, d.message || 'Готово'); renderResult(d); },
+                onDone: (d) => { setProgress(100, d.message || 'Готово'); renderResult(d); loadRuns(); },
                 onError: (msg) => { $('#tts-progress').hidden = true; renderError(msg); },
             });
         } catch (e) {
@@ -368,6 +369,80 @@
                 setTimeout(() => { copy.textContent = old; }, 1500);
             });
         }
+    }
+
+    // ---------- История озвучек (зеркало списка расшифровок) ----------
+
+    async function loadRuns() {
+        try {
+            const res = await fetch('/api/tts/runs');
+            const data = await res.json();
+            state.runs = data.runs || [];
+        } catch (e) {
+            console.error('runs load failed', e);
+            state.runs = [];
+        }
+        renderRuns();
+    }
+
+    function renderRuns() {
+        const list = $('#tts-runs');
+        if (!list) return;
+        if (!state.runs.length) {
+            list.innerHTML = '<div class="tts-history__empty">Пока нет озвучек.</div>';
+            return;
+        }
+        list.innerHTML = state.runs.map((r) => {
+            const meta = [
+                formatRunDate(r.created_at),
+                r.engine,
+                r.voice,
+                r.files_count ? `${r.files_count} ф.` : '',
+            ].filter(Boolean).join(' · ');
+            return `<div class="tts-run" data-id="${r.id}">
+                <div class="tts-run__main">
+                    <div class="tts-run__name">${escapeHtml(r.title)}</div>
+                    <div class="tts-run__meta">${escapeHtml(meta)}</div>
+                </div>
+                <button class="tts-run__del" title="Удалить (вместе с файлами)">×</button>
+            </div>`;
+        }).join('');
+        list.querySelectorAll('.tts-run').forEach((row) => {
+            const id = row.dataset.id;
+            row.querySelector('.tts-run__main').addEventListener('click', () => openRun(id));
+            row.querySelector('.tts-run__del').addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteRun(id);
+            });
+        });
+    }
+
+    async function openRun(id) {
+        try {
+            const res = await fetch(`/api/tts/runs/${id}`);
+            if (!res.ok) { alert('Не удалось загрузить озвучку'); return; }
+            const rec = await res.json();
+            // Переиспользуем renderResult — он строит плееры из files + output_dir.
+            renderResult({ files: rec.files || [], output_dir: rec.output_dir || '' });
+        } catch (e) {
+            alert('Ошибка: ' + e.message);
+        }
+    }
+
+    async function deleteRun(id) {
+        if (!confirm('Удалить озвучку безвозвратно (вместе с аудиофайлами)?')) return;
+        try {
+            await fetch(`/api/tts/runs/${id}`, { method: 'DELETE' });
+            loadRuns();
+        } catch (e) {
+            console.error('delete run failed', e);
+        }
+    }
+
+    function formatRunDate(ts) {
+        if (!ts) return '';
+        const d = new Date(ts * 1000);
+        return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
     function escapeHtml(s) {

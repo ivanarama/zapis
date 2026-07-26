@@ -91,3 +91,33 @@
     font-size: 13px;
     line-height: 1.45;
 }
+
+/* История озвучек */
+.tts-history { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
+.tts-history__head {
+    font-size: 12px; font-weight: 600; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px;
+}
+.tts-history__empty { color: var(--text-muted); font-size: 13px; padding: 8px 0; }
+.tts-history__list { display: flex; flex-direction: column; gap: 6px; }
+.tts-run {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--surface);
+}
+.tts-run__main { flex: 1; min-width: 0; cursor: pointer; }
+.tts-run__name {
+    font-size: 14px; font-weight: 500;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tts-run__meta {
+    font-size: 12px; color: var(--text-muted); margin-top: 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tts-run__main:hover .tts-run__name { color: var(--accent); }
+.tts-run__del {
+    flex: none; width: 26px; height: 26px; border: none; border-radius: 6px;
+    background: transparent; color: var(--text-muted); cursor: pointer;
+    font-size: 18px; line-height: 1;
+}
+.tts-run__del:hover { background: var(--danger, #e53935); color: #fff; }
