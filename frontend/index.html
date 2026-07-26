@@ -171,12 +171,38 @@
                         <select id="tts-engine">
                             <option value="silero">Silero — быстро</option>
                             <option value="piper">Piper — качество</option>
+                            <option value="yandex">Яндекс SpeechKit — облако</option>
+                            <option value="sber">Сбер SaluteSpeech — облако</option>
                         </select>
                     </label>
                     <label class="field">
                         <span>Голос</span>
                         <select id="tts-speaker"></select>
                     </label>
+                </div>
+
+                <div class="tts-cloud-creds" id="tts-cloud-creds" hidden>
+                    <div class="tts-cloud-creds__hint" id="tts-cloud-hint"></div>
+                    <label class="field" data-engine="yandex">
+                        <span>API-ключ Яндекса</span>
+                        <input type="password" id="tts-yandex-key" placeholder="Api-Key" autocomplete="off">
+                    </label>
+                    <label class="field" data-engine="yandex">
+                        <span>folderId (Yandex Cloud)</span>
+                        <input type="text" id="tts-yandex-folder" placeholder="b1g..." autocomplete="off">
+                    </label>
+                    <label class="field" data-engine="sber">
+                        <span>client_id (Сбер)</span>
+                        <input type="text" id="tts-sber-id" placeholder="ID приложения" autocomplete="off">
+                    </label>
+                    <label class="field" data-engine="sber">
+                        <span>client_secret (Сбер)</span>
+                        <input type="password" id="tts-sber-secret" placeholder="секрет приложения" autocomplete="off">
+                    </label>
+                    <div class="form-row">
+                        <button class="btn btn--secondary btn--sm" type="button" id="tts-cloud-save">Сохранить ключи</button>
+                        <button class="btn btn--secondary btn--sm" type="button" id="tts-cloud-test">Проверить</button>
+                    </div>
                 </div>
 
                 <div class="form-row">

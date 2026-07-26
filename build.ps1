@@ -176,6 +176,11 @@ $specLines = @(
     '        # Piper (движок «качество») + фабрика выбора движка'
     "        'backend.tts.factory',"
     "        'backend.tts.engine_piper',"
+    '        # Облачные TTS-движки (Яндекс/Сбер) — импортируются лениво в factory'
+    "        'backend.tts.engine_cloud_base',"
+    "        'backend.tts.engine_yandex',"
+    "        'backend.tts.engine_sber',"
+    "        'backend.tts.errors',"
     "        'piper',"
     "        'piper.voice',"
     "        'piper.config',"

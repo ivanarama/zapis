@@ -23,6 +23,8 @@
                 if (v) v.textContent = parseFloat(speed.value).toFixed(2);
             });
         }
+        const cs = $('#tts-cloud-save'); if (cs) cs.addEventListener('click', saveCloudCreds);
+        const ct = $('#tts-cloud-test'); if (ct) ct.addEventListener('click', testCloud);
         $('#btn-synthesize').addEventListener('click', synthesize);
     }
 
@@ -61,6 +63,12 @@
             $('#tts-piper-speed').value = String(ls);
             const sv = $('#tts-speed-val');
             if (sv) sv.textContent = parseFloat(ls).toFixed(2);
+            // Предзаполнение облачных ключей (если ранее сохранены в settings).
+            const yx = tts.yandex || {}, sb = tts.sber || {};
+            const yk = $('#tts-yandex-key'); if (yk) yk.value = yx.api_key || '';
+            const yf = $('#tts-yandex-folder'); if (yf) yf.value = yx.folder_id || '';
+            const si = $('#tts-sber-id'); if (si) si.value = sb.client_id || '';
+            const ss = $('#tts-sber-secret'); if (ss) ss.value = sb.client_secret || '';
             applyEngine();
         } catch (e) {
             console.error('voices load failed', e);
@@ -68,18 +76,27 @@
     }
 
     // Подстраивает форму под выбранный движок: список голосов, видимость частоты
-    // (Piper диктует её сам) и доступность ударений (ruaccent — только Silero).
+    // (её диктуют Piper и облако) и доступность ударений (ruaccent — только Silero).
     function applyEngine() {
         const engineSel = $('#tts-engine');
         const engine = engineSel ? engineSel.value : 'silero';
         const info = (state.engines && state.engines[engine]) || { speakers: [], fixed_rate: false };
         const tts = state.tts || {};
-        const saved = engine === 'piper'
-            ? (tts.piper && tts.piper.speaker)
-            : (tts.silero && tts.silero.speaker);
+        const isCloud = engine === 'yandex' || engine === 'sber';
+
+        let saved;
+        if (engine === 'piper') saved = tts.piper && tts.piper.speaker;
+        else if (engine === 'yandex') saved = tts.yandex && tts.yandex.voice;
+        else if (engine === 'sber') saved = tts.sber && tts.sber.voice;
+        else saved = tts.silero && tts.silero.speaker;
+
         const sel = $('#tts-speaker');
         const speakers = (info.speakers && info.speakers.length) ? info.speakers : ['baya'];
-        sel.innerHTML = speakers.map((s) => `<option value="${s}">${s}</option>`).join('');
+        const hifi = info.hifi || [];
+        sel.innerHTML = speakers.map((s) => {
+            const mark = hifi.includes(s) ? ' ★' : '';
+            return `<option value="${s}">${s}${mark}</option>`;
+        }).join('');
         if (saved && speakers.includes(saved)) sel.value = saved;
 
         const rateField = $('#tts-rate-field');
@@ -88,13 +105,82 @@
         const speedField = $('#tts-speed-field');
         if (speedField) speedField.hidden = engine !== 'piper';
 
+        // Ударения (ruaccent) понимает только Silero.
         const accent = $('#tts-accent');
         const note = $('#tts-accent-note');
-        const accentApplies = engine !== 'piper';
+        const accentApplies = engine === 'silero';
         if (accent) accent.disabled = !accentApplies;
         const accentField = $('#tts-accent-field');
         if (accentField) accentField.style.opacity = accentApplies ? '' : '0.5';
         if (note) note.textContent = accentApplies ? '' : '— только для Silero';
+
+        // Облачные учётные данные.
+        const creds = $('#tts-cloud-creds');
+        if (creds) {
+            creds.hidden = !isCloud;
+            creds.querySelectorAll('[data-engine]').forEach((el) => {
+                el.style.display = el.dataset.engine === engine ? '' : 'none';
+            });
+        }
+        const hint = $('#tts-cloud-hint');
+        if (hint && isCloud) {
+            hint.textContent = info.needs_config
+                ? '⚠ Ключи не заданы — заполните и сохраните, иначе озвучка не сработает.'
+                : 'Ключи заданы. Синтез идёт в облаке (нужен интернет).';
+            hint.style.color = info.needs_config ? 'var(--danger, #e53935)' : '';
+        }
+    }
+
+    // Сохранение облачных ключей в settings (deep-merge не затирает прочие поля).
+    async function saveCloudCreds() {
+        const engine = $('#tts-engine').value;
+        let patch = null;
+        if (engine === 'yandex') {
+            patch = { tts: { yandex: {
+                api_key: ($('#tts-yandex-key').value || '').trim(),
+                folder_id: ($('#tts-yandex-folder').value || '').trim(),
+            } } };
+        } else if (engine === 'sber') {
+            patch = { tts: { sber: {
+                client_id: ($('#tts-sber-id').value || '').trim(),
+                client_secret: ($('#tts-sber-secret').value || '').trim(),
+            } } };
+        }
+        if (!patch) return;
+        const hint = $('#tts-cloud-hint');
+        try {
+            const res = await fetch('/api/settings', {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(patch),
+            });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            await loadVoices();  // обновит needs_config/голос
+            if (hint) { hint.textContent = 'Ключи сохранены.'; hint.style.color = ''; }
+        } catch (e) {
+            alert('Не удалось сохранить ключи: ' + (e.message || e));
+        }
+    }
+
+    // Проверка ключа коротким синтезом через /api/tts/test.
+    async function testCloud() {
+        const engine = $('#tts-engine').value;
+        const speaker = $('#tts-speaker').value;
+        const hint = $('#tts-cloud-hint');
+        if (hint) { hint.textContent = 'Проверка…'; hint.style.color = ''; }
+        try {
+            const res = await fetch('/api/tts/test', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ engine, speaker }),
+            });
+            const d = await res.json();
+            if (d.ok) {
+                if (hint) { hint.textContent = '✓ Ключ работает (' + (d.samples || 0) + ' сэмплов).'; hint.style.color = ''; }
+            } else {
+                if (hint) { hint.textContent = '✗ ' + (d.error || 'ошибка'); hint.style.color = 'var(--danger, #e53935)'; }
+            }
+        } catch (e) {
+            if (hint) { hint.textContent = '✗ ' + (e.message || e); hint.style.color = 'var(--danger, #e53935)'; }
+        }
     }
 
     function setupUpload() {

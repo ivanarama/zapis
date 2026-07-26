@@ -24,6 +24,7 @@ from . import normalize as normalize_mod
 from . import spool as spool_mod
 from . import stress as stress_mod
 from .factory import get_engine
+from .errors import CloudTtsError
 
 log = logging.getLogger("zavuk.tts.pipeline")
 
@@ -129,6 +130,10 @@ async def synthesize(
                             audio = await asyncio.to_thread(
                                 eng.synth, chunk, speaker, sample_rate, **(synth_opts or {})
                             )
+                        except CloudTtsError:
+                            # Сбой облака (нет ключа/сети/авторизации) — прерываем книгу
+                            # с понятной ошибкой, иначе всё уйдёт в тишину.
+                            raise
                         except Exception as e:  # noqa: BLE001 — плохой фрагмент не должен рушить книгу
                             log.warning("Сбой синтеза фрагмента: %s", e)
                             audio = assemble.silence(pauses["sentence"], sample_rate)

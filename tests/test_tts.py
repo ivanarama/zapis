@@ -55,6 +55,101 @@ def test_chunker_splits_paragraphs():
     assert len(paragraphs) == 2, paragraphs
 
 
+# ---------- облачные TTS-движки (базовый слой, без сети) ----------
+
+from backend.tts.engine_cloud_base import decode_audio, split_text  # noqa: E402
+from backend.tts.errors import CloudTtsError  # noqa: E402
+
+
+def test_split_text_under_limit_returns_as_is():
+    assert split_text("короткий текст", 100) == ["короткий текст"]
+
+
+def test_split_text_respects_limit_and_keeps_sentences():
+    s = "Предложение раз. " * 500  # ~9000 символов
+    parts = split_text(s.strip(), 50)
+    assert parts
+    assert all(len(p) <= 50 for p in parts), [len(p) for p in parts]
+    # ничего не потеряли и не удвоили
+    joined = "".join(p.replace(" ", "") for p in parts)
+    assert joined == s.strip().replace(" ", "")
+
+
+def test_split_text_unsplittable_long_word_cut_hard():
+    w = "а" * 120
+    parts = split_text(w, 50)
+    assert all(len(p) <= 50 for p in parts)
+    assert "".join(parts) == w
+
+
+def test_split_text_empty():
+    assert split_text("", 50) == []
+    assert split_text("   \n  ", 50) == []
+
+
+def test_decode_lpcm_int16_to_float32():
+    import numpy as np
+
+    samples = np.array([0, 32767, -32768, 16384], dtype="<i2").tobytes()
+    out = decode_audio(samples, "lpcm")
+    assert out.dtype == np.float32
+    assert abs(out[0]) < 1e-6
+    assert abs(out[1] - 1.0) < 1e-4
+    assert abs(out[2] + 1.0) < 1e-4
+    assert abs(out[3] - 0.5) < 1e-4
+
+
+def test_decode_empty_returns_empty():
+    import numpy as np
+
+    out = decode_audio(b"", "lpcm")
+    assert out.dtype == np.float32
+    assert out.shape == (0,)
+
+
+def test_cloud_tts_error_is_runtime_error():
+    assert issubclass(CloudTtsError, RuntimeError)
+
+
+def test_pipeline_propagates_cloud_error():
+    """Сбой облака (CloudTtsError) должен прерывать книгу, а не подменяться тишиной."""
+    import asyncio
+    import tempfile
+
+    import backend.tts.pipeline as P
+
+    class FakeEngine:
+        accepts_accent_marks = False
+
+        def initialize(self):
+            pass
+
+        def resolve_sample_rate(self, speaker, requested):
+            return 48000
+
+        def synth(self, *args, **kwargs):
+            raise CloudTtsError("нет ключа")
+
+    orig = P.get_engine
+    P.get_engine = lambda *a, **k: FakeEngine()  # noqa: E731
+    try:
+        async def drive():
+            agen = P.synthesize(
+                text="Тест раз. Тест два.", out_dir=tempfile.mkdtemp(), engine_name="yandex"
+            )
+            async for _ in agen:
+                pass
+
+        raised = False
+        try:
+            asyncio.run(drive())
+        except CloudTtsError:
+            raised = True
+        assert raised, "pipeline должен пробросить CloudTtsError, а не заглушить тишиной"
+    finally:
+        P.get_engine = orig
+
+
 def _run():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0

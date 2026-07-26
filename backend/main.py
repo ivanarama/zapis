@@ -36,6 +36,7 @@ from .tts import normalize_cache as tts_norm_cache
 from .tts import pipeline as tts_pipeline
 from .tts.engine import SPEAKERS_V4_RU
 from .tts.engine_piper import PIPER_RU_VOICES
+from .tts.factory import get_engine as get_tts_engine
 from .tts.normalize import normalize_text as tts_normalize_text
 from .tts.reader import decode_book
 
@@ -503,15 +504,29 @@ def _build_tts_normalizer():
     return _normalize
 
 
+def _cloud_engine_info(name: str) -> dict:
+    """Каталог голосов и флаг готовности облачного движка (для /api/tts/voices)."""
+    st = get_tts_engine(name).get_status()
+    return {
+        "speakers": st["speakers"],
+        "fixed_rate": True,  # частоту диктует провайдер
+        "cloud": True,
+        "needs_config": st["status"] == "needs_config",
+        "hifi": st.get("hifi", []),
+    }
+
+
 @app.get("/api/tts/voices")
 async def tts_voices():
     ts = get_settings().tts
     return {
         "engine": ts.engine,
         "engines": {
-            # fixed_rate=True → частоту диктует движок (Piper), UI прячет выбор.
+            # fixed_rate=True → частоту диктует движок, UI прячет выбор.
             "silero": {"speakers": SPEAKERS_V4_RU, "fixed_rate": False},
             "piper": {"speakers": PIPER_RU_VOICES, "fixed_rate": True},
+            "yandex": _cloud_engine_info("yandex"),
+            "sber": _cloud_engine_info("sber"),
         },
         "speakers": SPEAKERS_V4_RU,  # совместимость со старым фронтендом
         "tts": ts.model_dump(),
@@ -539,13 +554,19 @@ async def tts_synthesize(file: UploadFile = File(...), options: str = Form("{}")
     title = (opts.get("title") or "").strip() or Path(file.filename or "Книга").stem or "Книга"
     author = (opts.get("author") or "").strip()
     engine = (opts.get("engine") or ts.engine or "silero").lower()
-    if engine not in ("silero", "piper"):
+    if engine not in ("silero", "piper", "yandex", "sber"):
         engine = "silero"
     if engine == "piper":
         speaker = opts.get("speaker") or ts.piper.speaker
         # Частоту для Piper выбирает сам голос — pipeline согласует её (resolve).
         sample_rate = int(opts.get("sample_rate") or ts.silero.sample_rate)
         synth_opts = {"length_scale": float(opts.get("length_scale") or ts.piper.length_scale)}
+    elif engine in ("yandex", "sber"):
+        # Секреты движок берёт сам из settings; в формуле их НЕ передаём.
+        # Частоту диктует провайдер — pipeline согласует через resolve_sample_rate.
+        speaker = opts.get("speaker") or (ts.yandex.voice if engine == "yandex" else ts.sber.voice)
+        sample_rate = 0
+        synth_opts = {}
     else:
         speaker = opts.get("speaker") or ts.silero.speaker
         sample_rate = int(opts.get("sample_rate") or ts.silero.sample_rate)
@@ -570,6 +591,10 @@ async def tts_synthesize(file: UploadFile = File(...), options: str = Form("{}")
     }
     if engine == "piper":
         persist["piper"] = {"speaker": speaker, "length_scale": synth_opts["length_scale"]}
+    elif engine == "yandex":
+        persist["yandex"] = {"voice": speaker}
+    elif engine == "sber":
+        persist["sber"] = {"voice": speaker}
     else:
         persist["silero"] = {"speaker": speaker, "sample_rate": sample_rate}
     try:
@@ -611,6 +636,37 @@ async def tts_synthesize(file: UploadFile = File(...), options: str = Form("{}")
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+class TTSTestBody(BaseModel):
+    engine: str = "silero"
+    speaker: str = ""
+
+
+@app.post("/api/tts/test")
+async def tts_test(body: TTSTestBody):
+    """Синтез короткой фразы — проверка настроек/ключей движка. Не бросает 5xx,
+    чтобы UI мог прочитать JSON с ошибкой."""
+    name = (body.engine or "").lower()
+    if name not in ("silero", "piper", "yandex", "sber"):
+        return JSONResponse({"ok": False, "error": "Неизвестный движок"}, status_code=400)
+    try:
+        eng = get_tts_engine(name)
+        await asyncio.to_thread(eng.initialize)
+        ts = get_settings().tts
+        if name == "yandex":
+            speaker = body.speaker or ts.yandex.voice
+        elif name == "sber":
+            speaker = body.speaker or ts.sber.voice
+        elif name == "piper":
+            speaker = body.speaker or ts.piper.speaker
+        else:
+            speaker = body.speaker or ts.silero.speaker
+        sample_rate = eng.resolve_sample_rate(speaker, 0)
+        audio = await asyncio.to_thread(eng.synth, "Проверка связи.", speaker, sample_rate)
+        return {"ok": bool(len(audio)), "samples": int(len(audio))}
+    except Exception as e:  # noqa: BLE001
+        return JSONResponse({"ok": False, "error": format_llm_user_error(e)}, status_code=200)
 
 
 class TTSRevealBody(BaseModel):

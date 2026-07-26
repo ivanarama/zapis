@@ -135,6 +135,27 @@ class PiperSettings(BaseModel):
     length_scale: float = 1.0
 
 
+class YandexSettings(BaseModel):
+    # Облако: Яндекс SpeechKit. api_key + folder_id из консоли Yandex Cloud.
+    # Секреты — plaintext в settings.json (локальное однопользовательское приложение).
+    # voice — имя голоса из каталога SpeechKit; emotion — эмоциональная окраска.
+    api_key: str = ""
+    folder_id: str = ""
+    voice: str = "alena"
+    emotion: Literal["neutral", "good", "evil"] = "neutral"
+
+
+class SberSettings(BaseModel):
+    # Облако: Сбер SaluteSpeech. client_id/client_secret — из дев-портала SberDevices
+    # (developers.sber.ru); обмениваются на короткоживущий access-token в рантайме
+    # (OAuth client_credentials, ~24ч). voice — из каталога SaluteSpeech.
+    # ВАЖНО: API Сбера — под сертификатом российского центра Минцифры (не в certifi);
+    # см. backend.tts.engine_sber.
+    client_id: str = ""
+    client_secret: str = ""
+    voice: str = "Nazar"
+
+
 class TTSPauses(BaseModel):
     sentence: int = 300
     paragraph: int = 700
@@ -162,11 +183,13 @@ class TTSExport(BaseModel):
 
 
 class TTSSettings(BaseModel):
-    engine: Literal["silero", "piper"] = "silero"
+    engine: Literal["silero", "piper", "yandex", "sber"] = "silero"
     language: str = "ru"
     device: Literal["auto", "cpu", "cuda"] = "cpu"
     silero: SileroSettings = SileroSettings()
     piper: PiperSettings = PiperSettings()
+    yandex: YandexSettings = YandexSettings()
+    sber: SberSettings = SberSettings()
     pauses: TTSPauses = TTSPauses()
     # Резать по предложениям → пауза pauses.sentence после каждого предложения
     # (а не после пачки). Чуть медленнее синтез, зато речь размереннее.
