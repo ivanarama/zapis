@@ -43,7 +43,17 @@ if [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "x86_64" ]; then
     # Install remaining deps (skip torch/torchaudio/gigaam already done)
     grep -v -e "^torch==" -e "^torchaudio==" -e "^gigaam" -e "^#" -e "^$" requirements.txt \
         | "$PIP" install -r /dev/stdin
+elif [ "$(uname -s)" = "Linux" ]; then
+    # Linux: torch==2.5.1 by default pulls the giant CUDA wheel (~2.3 GB), which
+    # makes the PyInstaller binary exceed GitHub Release's 2 GB asset limit.
+    # Install CPU-only torch -- ASR runs via onnxruntime (not torch), TTS Silero
+    # on CPU; consistent with the Windows/macOS builds.
+    echo "Linux detected — installing CPU-only torch..."
+    "$PIP" install torch==2.5.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+    grep -v -e "^torch==" -e "^torchaudio==" -e "^#" -e "^$" requirements.txt \
+        | "$PIP" install -r /dev/stdin
 else
+    # macOS Apple Silicon: default torch wheels are CPU (no CUDA) -- install straight.
     "$PIP" install -r requirements.txt
 fi
 
