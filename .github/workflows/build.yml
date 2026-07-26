@@ -6,10 +6,9 @@ on:
     tags: ["v*"]
   workflow_dispatch:
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
+# concurrency/cancel-in-progress убран намеренно: macos-13 (Intel) идёт ~30+ мин,
+# и при частых пуших cancel-in-progress отменял ран, не давая ему завершиться →
+# статус всегда был «cancelled». Репо публичный, минуты Actions не ограничены.
 jobs:
   build:
     strategy:
@@ -25,12 +24,14 @@ jobs:
           - os: macos-13
             artifact: Zapis-macos-intel
             build_cmd: bash build.sh
+            experimental: true        # Intel Mac: неблокирующий job (continue-on-error)
           - os: macos-latest
             artifact: Zapis-macos-arm
             build_cmd: bash build.sh
 
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
+    continue-on-error: ${{ matrix.experimental == true }}
 
     steps:
       - uses: actions/checkout@v4
@@ -100,6 +101,14 @@ jobs:
             dist/Zapis.app
             dist/settings.json
           if-no-files-found: error
+
+      # macOS: .app — это каталог, а GitHub Release принимает только файлы.
+      # Запаковываем в zip после upload-artifact (тот уже сохранил .app как артефакт).
+      - name: Package macOS app for release
+        if: ${{ runner.os == 'macOS' && startsWith(github.ref, 'refs/tags/v') }}
+        run: |
+          ditto -c -k --keepParent "dist/Zapis.app" "dist/${{ matrix.artifact }}.zip"
+          rm -rf "dist/Zapis.app"
 
       - name: Attach to GitHub Release
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
