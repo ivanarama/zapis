@@ -6,6 +6,9 @@ on:
     tags: ["v*"]
   workflow_dispatch:
 
+permissions:
+  contents: write   # softprops/action-gh-release: создание/обновление релиза + загрузка assets
+
 # concurrency/cancel-in-progress убран намеренно: macos-13 (Intel) идёт ~30+ мин,
 # и при частых пуших cancel-in-progress отменял ран, не давая ему завершиться →
 # статус всегда был «cancelled». Репо публичный, минуты Actions не ограничены.
