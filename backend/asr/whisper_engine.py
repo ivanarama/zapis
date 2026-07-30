@@ -28,6 +28,35 @@ WHISPER_LANGUAGES = [
 ]
 
 
+def _detect_device() -> str:
+    """Есть ли GPU — надо спрашивать у CTranslate2, а не у torch.
+
+    Whisper считает на CTranslate2, torch тут вообще не участвует. При этом в
+    дистрибутиве torch собран без CUDA, так что torch.cuda.is_available()
+    всегда False — и автоопределение через него навсегда запирало Whisper на
+    CPU даже на машине с рабочей видеокартой.
+    """
+    try:
+        import ctranslate2
+
+        return "cuda" if ctranslate2.get_cuda_device_count() > 0 else "cpu"
+    except Exception:  # noqa: BLE001 — нет CUDA-рантайма, старый драйвер и т.п.
+        log.info("CUDA-устройства не найдены, Whisper пойдёт на CPU", exc_info=True)
+        return "cpu"
+
+
+def _describe_cuda_error(exc: BaseException, device: str) -> Optional[str]:
+    """Подсказка вместо «DLL load failed», когда GPU затребован, но не выходит."""
+    if device != "cuda":
+        return None
+    return (
+        "Не удалось запустить Whisper на видеокарте. Нужны NVIDIA-драйвер с "
+        "поддержкой CUDA 12 и библиотека cuDNN 9; на не-NVIDIA GPU режим «cuda» "
+        "не работает вовсе. Поставьте asr.whisper.device = \"cpu\" в settings.json, "
+        f"чтобы вернуться на процессор. [{type(exc).__name__}: {str(exc)[:160]}]"
+    )
+
+
 class WhisperEngine:
     """ASR-движок на faster-whisper. Модель грузится лениво при первом
     transcribe() — это позволяет приложению стартовать без скачивания
@@ -78,15 +107,11 @@ class WhisperEngine:
         if self._model is not None or self._error:
             return
         self._loading = True
+        device = self._device  # на случай падения до автоопределения
         try:
             from faster_whisper import WhisperModel  # type: ignore
-            import torch
 
-            device = (
-                self._device
-                if self._device != "auto"
-                else ("cuda" if torch.cuda.is_available() else "cpu")
-            )
+            device = self._device if self._device != "auto" else _detect_device()
             compute_type = "float16" if device == "cuda" else "int8"
             # CTranslate2 при cpu_threads=0 берёт 4 потока независимо от числа
             # ядер: на 12-ядерной машине это ~20% загрузки CPU и втрое более
@@ -110,6 +135,7 @@ class WhisperEngine:
                 describe_download_error(
                     exc, f"модель Whisper «{self._model_size}»", HUGGINGFACE_HOST
                 )
+                or _describe_cuda_error(exc, device)
                 or str(exc)
             )
         finally:

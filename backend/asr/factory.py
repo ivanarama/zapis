@@ -14,6 +14,14 @@ _lock = threading.Lock()
 _engines: dict[str, Transcriber] = {}
 _active: str = "gigaam"
 _device: str = "auto"
+# Устройство, заданное отдельно для конкретного движка (asr.<движок>.device).
+# Пусто = наследовать общий asr.device.
+_device_overrides: dict[str, str] = {}
+
+
+def _resolve_device(name: str) -> str:
+    """Устройство для конкретного движка: своя настройка важнее общей."""
+    return _device_overrides.get(name) or _device
 
 
 def _create(name: str, device: str = "auto") -> Transcriber:
@@ -33,7 +41,7 @@ def get_engine(name: Optional[str] = None) -> Transcriber:
     target = name or _active
     with _lock:
         if target not in _engines:
-            _engines[target] = _create(target, device=_device)
+            _engines[target] = _create(target, device=_resolve_device(target))
         return _engines[target]
 
 
@@ -51,9 +59,18 @@ def set_active_engine(name: str) -> Transcriber:
     return eng
 
 
-def set_device(device: str) -> None:
-    global _device
-    _device = device
+def set_device(device: str, overrides: Optional[dict[str, Optional[str]]] = None) -> None:
+    """Задать устройство: общее и, при необходимости, отдельное для движков.
+
+    Устройство фиксируется в момент создания движка, поэтому уже созданные
+    сбрасываем — иначе настройка не подействует до перезапуска. Создание
+    дешёвое, модель грузится лениво, так что терять тут нечего.
+    """
+    global _device, _device_overrides
+    with _lock:
+        _device = device
+        _device_overrides = {k: v for k, v in (overrides or {}).items() if v}
+        _engines.clear()
 
 
 def available_engines() -> list[str]:

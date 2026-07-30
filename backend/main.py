@@ -67,8 +67,15 @@ async def _startup():
     она загрузится лениво при первой транскрибации (см. api_transcribe).
     Так открытие приложения ради озвучки не вкачивает ASR-модель в память."""
     settings = get_settings()
+    # Устройство — до выбора движка: оно фиксируется при создании движка.
+    asr_factory.set_device(
+        settings.asr.device,
+        {
+            "gigaam": settings.asr.gigaam.device,
+            "whisper": settings.asr.whisper.device,
+        },
+    )
     asr_factory.set_active_engine(settings.asr.engine)
-    asr_factory.set_device(settings.asr.device)
 
 
 @app.get("/")

@@ -103,6 +103,8 @@ a = Analysis(
         'kenlm', 'sentencepiece', 'pygtrie',
         'faster_whisper', 'ctranslate2', 'tokenizers',
         'av',
+        # системное хранилище сертификатов (корпоративный TLS-прокси)
+        'truststore',
         'openai', 'anthropic',
         'backend.asr', 'backend.asr.gigaam_engine',
         'backend.asr.whisper_engine', 'backend.asr.factory',
@@ -182,6 +184,8 @@ a = Analysis(
         'kenlm', 'sentencepiece', 'pygtrie',
         'faster_whisper', 'ctranslate2', 'tokenizers',
         'av',
+        # системное хранилище сертификатов (корпоративный TLS-прокси)
+        'truststore',
         'openai', 'anthropic',
         'backend.asr', 'backend.asr.gigaam_engine',
         'backend.asr.whisper_engine', 'backend.asr.factory',

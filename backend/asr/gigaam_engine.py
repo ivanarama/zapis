@@ -419,6 +419,16 @@ class GigaamEngine:
                 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             else:
                 device = torch.device(self._device)
+            # В дистрибутиве torch собран без CUDA, и попытка увезти модель на
+            # видеокарту падает с "Torch not compiled with CUDA enabled" уже
+            # после скачивания весов. Откатываемся на CPU: GigaAM на процессоре
+            # рабочий, а вот молчаливое падение движка по умолчанию — нет.
+            if device.type == "cuda" and not torch.cuda.is_available():
+                log.warning(
+                    "CUDA недоступна (torch без поддержки CUDA либо нет видеокарты) — "
+                    "GigaAM переключён на CPU"
+                )
+                device = torch.device("cpu")
             log.info("Using device: %s (configured: %s)", device, self._device)
             gc.collect()
             if device.type == "cuda":

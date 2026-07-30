@@ -5,7 +5,7 @@ fallback. Внутри профиля список моделей — тоже �
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -82,6 +82,10 @@ class LLMSettings(BaseModel):
 
 class GigaamSettings(BaseModel):
     version: Literal["v2", "v3"] = "v3"
+    # None = взять asr.device. GigaAM считает на torch, а в дистрибутиве torch
+    # собран без CUDA, поэтому "cuda" здесь сработает только в сборке с
+    # CUDA-колесом torch — иначе движок сам откатится на CPU.
+    device: Optional[Literal["auto", "cpu", "cuda"]] = None
 
 
 class WhisperSettings(BaseModel):
@@ -89,6 +93,10 @@ class WhisperSettings(BaseModel):
     # Потоков CPU для CTranslate2. 0 = по числу ядер (иначе движок молча
     # берёт свои 4 и не разгоняется на многоядерных машинах).
     cpu_threads: int = Field(default=0, ge=0, le=256)
+    # None = взять asr.device. Отдельная настройка нужна потому, что Whisper
+    # считает на CTranslate2, а не на torch: GPU может быть доступен ему даже
+    # там, где GigaAM вынужден остаться на CPU.
+    device: Optional[Literal["auto", "cpu", "cuda"]] = None
 
 
 class ASRSettings(BaseModel):

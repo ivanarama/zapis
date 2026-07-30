@@ -83,7 +83,7 @@ if ($kenlmWheels) {
 $specLines = @(
     '# -*- mode: python ; coding: utf-8 -*-'
     ''
-    'from PyInstaller.utils.hooks import collect_all'
+    'from PyInstaller.utils.hooks import collect_all, collect_dynamic_libs'
     ''
     'block_cipher = None'
     ''
@@ -110,10 +110,21 @@ $specLines = @(
     "_accent_datas = [(_s, _dd) for (_s, _dd) in _accent_datas if _os.path.basename(_s).lower() != 'ruword2tags.db']"
     "_accent_datas.append((_stub_db, _os.path.join('ruaccent', 'koziev', 'rupostagger', 'database')))"
     ''
+    '# Колесо ctranslate2 (движок faster-whisper) собрано с поддержкой CUDA, но'
+    '# свои DLL грузит через LoadLibrary в рантайме -- в таблице импортов их нет,'
+    '# и PyInstaller сам их не находит (проверено по EXE-00.toc: в бандл попадала'
+    '# только ctranslate2.dll). Забираем бинарники пакета явно.'
+    '# ВНИМАНИЕ: cudnn64_9.dll здесь -- диспетчер на 266 КБ, а не сам cuDNN.'
+    '# Движковые библиотеки (cudnn_engines_*, cudnn_graph*) лежат в пакете'
+    '# nvidia-cudnn-cu12, которого в requirements нет намеренно: он вместе с'
+    '# nvidia-cublas-cu12 добавил бы к exe больше гигабайта. Поэтому GPU-режим'
+    '# требует cuDNN 9 на машине пользователя -- см. README, раздел про GPU.'
+    "_ct2_bins = collect_dynamic_libs('ctranslate2')"
+    ''
     'a = Analysis('
     "    ['main.py'],"
     '    pathex=[],'
-    '    binaries=_accent_bins,'
+    '    binaries=_accent_bins + _ct2_bins,'
     '    datas=['
     "        ('frontend', 'frontend'),"
     "        ('settings.json', '.'),"
