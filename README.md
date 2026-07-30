@@ -129,13 +129,19 @@ pip install --force-reinstall git+https://github.com/salute-developers/GigaAM.gi
 
 ### Куда приложение ходит по сети
 
-Веса моделей не входят в дистрибутив и качаются при первом использовании с **двух разных хостов** — доступность одного ничего не говорит о другом:
+Веса моделей не входят в дистрибутив и качаются при первом использовании с **нескольких независимых хостов** — доступность одного ничего не говорит о другом:
 
 | Что | Откуда | Куда кладётся |
 |---|---|---|
 | GigaAM v3 | `cdn.chatwm.opensmodel.sberdevices.ru` | `~/.cache/gigaam` |
-| KenLM (T-one), Whisper, ruaccent, голоса Piper | `huggingface.co` | `~/.cache/huggingface` |
+| KenLM (T-one), Whisper, ruaccent, голоса Piper | `huggingface.co` + `*.xethub.hf.co` | `~/.cache/huggingface` |
 | Silero (TTS) | `github.com` (torch.hub) | `~/.cache/torch/hub` |
+
+⚠️ Крупные файлы с HuggingFace идут **не с `huggingface.co`**: `huggingface_hub` 1.x отдаёт их через Xet (`cas-server.xethub.hf.co`, `transfer.xethub.hf.co`). Если файрвол пропускает `huggingface.co`, но режет `xethub.hf.co`, скачивание молча зависает — метаданные приходят, а файл остаётся нулевого размера. Обходится переменной окружения:
+
+```powershell
+$env:HF_HUB_DISABLE_XET = "1"    # качать напрямую по HTTPS с huggingface.co
+```
 
 Если модель не скачивается, приложение назовёт в ошибке конкретный хост и причину (блокировка, таймаут, перехват TLS). Полный traceback — в `zapis.log` рядом с исполняемым файлом, он пишется всегда на уровне DEBUG.
 
