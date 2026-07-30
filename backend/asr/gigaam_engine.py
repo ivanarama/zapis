@@ -20,9 +20,12 @@ import torch
 from ..formats import format_result
 from .base import (
     EngineStatus,
+    GIGAAM_CDN_HOST,
+    HUGGINGFACE_HOST,
     SAMPLE_RATE,
     TranscribeResult,
     decode_audio_bytes,
+    describe_download_error,
 )
 
 log = logging.getLogger("zapis.asr.gigaam")
@@ -408,6 +411,9 @@ class GigaamEngine:
         if self._loaded or self._error or self._needs_install:
             return
         self._loading = True
+        # Что качаем прямо сейчас и откуда — нужно, чтобы в тексте ошибки
+        # назвать конкретный недоступный хост (у весов и у KenLM они разные).
+        stage = (f"модель GigaAM {self._version}", GIGAAM_CDN_HOST)
         try:
             if self._device == "auto":
                 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -423,6 +429,7 @@ class GigaamEngine:
             self._longform = LongformCTC(self._model, segment_shift=20)
 
             log.info("Downloading T-one KenLM...")
+            stage = ("языковую модель KenLM (T-one)", HUGGINGFACE_HOST)
             from huggingface_hub import hf_hub_download
             kenlm_path = hf_hub_download("t-tech/T-one", "kenlm.bin")
 
@@ -432,7 +439,7 @@ class GigaamEngine:
             log.info("GigaAM %s ready", self._version)
         except Exception as exc:
             log.exception("Failed to load GigaAM models")
-            self._error = str(exc)
+            self._error = describe_download_error(exc, *stage) or str(exc)
         finally:
             self._loading = False
 

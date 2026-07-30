@@ -142,6 +142,8 @@ $specLines = @(
     "        'tokenizers',"
     '        # pyav -- audio decoder shared by both ASR engines'
     "        'av',"
+    '        # системное хранилище сертификатов (корпоративный TLS-прокси)'
+    "        'truststore',"
     '        # LLM clients'
     "        'openai',"
     "        'anthropic',"

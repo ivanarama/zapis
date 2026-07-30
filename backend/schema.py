@@ -86,6 +86,9 @@ class GigaamSettings(BaseModel):
 
 class WhisperSettings(BaseModel):
     model: Literal["tiny", "base", "small", "medium", "large-v2", "large-v3"] = "small"
+    # Потоков CPU для CTranslate2. 0 = по числу ядер (иначе движок молча
+    # берёт свои 4 и не разгоняется на многоядерных машинах).
+    cpu_threads: int = Field(default=0, ge=0, le=256)
 
 
 class ASRSettings(BaseModel):

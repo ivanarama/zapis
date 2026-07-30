@@ -12,7 +12,8 @@
       "version": "v3"
     },
     "whisper": {
-      "model": "small"
+      "model": "small",
+      "cpu_threads": 0
     }
   },
   "llm": {

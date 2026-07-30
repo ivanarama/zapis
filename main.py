@@ -46,8 +46,23 @@ if __name__ == "__main__":
     import threading
     import traceback
 
+    # Доверяем системному хранилищу сертификатов. Это важно для машин с
+    # корпоративным прокси, который перехватывает TLS: его корневой сертификат
+    # лежит в хранилище ОС, но httpx (а на нём работает huggingface_hub 1.x)
+    # по умолчанию смотрит только в certifi и падает на скачивании моделей —
+    # при том что в браузере HuggingFace открывается. Инжектим до любых сетевых
+    # импортов, чтобы патч застал создание SSL-контекстов.
+    _truststore_ok = False
+    try:
+        import truststore
+        truststore.inject_into_ssl()
+        _truststore_ok = True
+    except Exception:  # noqa: BLE001 — падать из-за сертификатов нельзя
+        pass
+
     # macOS Python doesn't use system certificates — inject certifi bundle
-    if sys.platform == "darwin":
+    # (запасной путь, если truststore недоступен)
+    if sys.platform == "darwin" and not _truststore_ok:
         try:
             import certifi
             os.environ.setdefault("SSL_CERT_FILE", certifi.where())
@@ -139,6 +154,10 @@ if __name__ == "__main__":
     log = logging.getLogger("zapis")
     _setup_logging(to_file=True)
     log.info("Starting Zapis from %s", _get_app_dir())
+    log.info(
+        "System certificate store: %s",
+        "enabled (truststore)" if _truststore_ok else "unavailable, falling back to certifi",
+    )
 
     try:
         port = _find_free_port(8001)

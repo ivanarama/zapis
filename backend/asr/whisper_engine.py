@@ -3,10 +3,18 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import Optional
 
 from ..formats import format_result
-from .base import EngineStatus, SAMPLE_RATE, TranscribeResult, decode_audio_bytes
+from .base import (
+    EngineStatus,
+    HUGGINGFACE_HOST,
+    SAMPLE_RATE,
+    TranscribeResult,
+    decode_audio_bytes,
+    describe_download_error,
+)
 
 log = logging.getLogger("zapis.asr.whisper")
 
@@ -27,9 +35,15 @@ class WhisperEngine:
 
     name = "whisper"
 
-    def __init__(self, model_size: str = DEFAULT_MODEL, device: str = "auto"):
+    def __init__(
+        self,
+        model_size: str = DEFAULT_MODEL,
+        device: str = "auto",
+        cpu_threads: int = 0,
+    ):
         self._model_size = model_size
         self._device = device
+        self._cpu_threads = cpu_threads
         self._model = None
         self._error: Optional[str] = None
         self._loading = False
@@ -74,17 +88,30 @@ class WhisperEngine:
                 else ("cuda" if torch.cuda.is_available() else "cpu")
             )
             compute_type = "float16" if device == "cuda" else "int8"
+            # CTranslate2 при cpu_threads=0 берёт 4 потока независимо от числа
+            # ядер: на 12-ядерной машине это ~20% загрузки CPU и втрое более
+            # долгая транскрибация. Считаем по числу ядер; 0 в настройках =
+            # «авто», явное число — ручное ограничение.
+            threads = self._cpu_threads if self._cpu_threads > 0 else (os.cpu_count() or 4)
             log.info(
-                "Loading faster-whisper %s on %s (%s)",
-                self._model_size, device, compute_type,
+                "Loading faster-whisper %s on %s (%s), cpu_threads=%d",
+                self._model_size, device, compute_type, threads,
             )
             self._model = WhisperModel(
-                self._model_size, device=device, compute_type=compute_type,
+                self._model_size,
+                device=device,
+                compute_type=compute_type,
+                cpu_threads=threads,
             )
             log.info("faster-whisper ready")
         except Exception as exc:
             log.exception("Failed to load faster-whisper")
-            self._error = str(exc)
+            self._error = (
+                describe_download_error(
+                    exc, f"модель Whisper «{self._model_size}»", HUGGINGFACE_HOST
+                )
+                or str(exc)
+            )
         finally:
             self._loading = False
 
@@ -94,6 +121,15 @@ class WhisperEngine:
         if size == self._model_size:
             return
         self._model_size = size
+        self._model = None
+        self._error = None
+
+    def set_cpu_threads(self, threads: int) -> None:
+        """Как и set_model_size — параметр конструктора модели, поэтому смена
+        сбрасывает уже загруженную модель."""
+        if threads == self._cpu_threads:
+            return
+        self._cpu_threads = threads
         self._model = None
         self._error = None
 

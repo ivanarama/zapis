@@ -163,6 +163,7 @@ async def api_transcribe(
             from .asr.whisper_engine import WhisperEngine
             if isinstance(eng, WhisperEngine):
                 eng.set_model_size(settings.asr.whisper.model)
+                eng.set_cpu_threads(settings.asr.whisper.cpu_threads)
 
         # ASR — CPU/GPU-bound, выносим в thread (там же ленивая инициализация)
         result = await asyncio.to_thread(eng.transcribe, data, file.filename, lang)

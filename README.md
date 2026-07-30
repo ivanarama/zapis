@@ -127,6 +127,20 @@ pip install --force-reinstall git+https://github.com/salute-developers/GigaAM.gi
 
 Если после `pip install -r requirements.txt` приложение пишет `Model 'v3_ctc' not found` — значит осталась старая PyPI-версия, выполните команду выше вручную с `--force-reinstall`.
 
+### Куда приложение ходит по сети
+
+Веса моделей не входят в дистрибутив и качаются при первом использовании с **двух разных хостов** — доступность одного ничего не говорит о другом:
+
+| Что | Откуда | Куда кладётся |
+|---|---|---|
+| GigaAM v3 | `cdn.chatwm.opensmodel.sberdevices.ru` | `~/.cache/gigaam` |
+| KenLM (T-one), Whisper, ruaccent, голоса Piper | `huggingface.co` | `~/.cache/huggingface` |
+| Silero (TTS) | `github.com` (torch.hub) | `~/.cache/torch/hub` |
+
+Если модель не скачивается, приложение назовёт в ошибке конкретный хост и причину (блокировка, таймаут, перехват TLS). Полный traceback — в `zapis.log` рядом с исполняемым файлом, он пишется всегда на уровне DEBUG.
+
+На машинах с корпоративным прокси, подменяющим сертификаты, проверка идёт через системное хранилище Windows/macOS (пакет `truststore`) — отдельно прописывать корневой сертификат не нужно.
+
 ## Настройка
 
 `settings.json` (поля можно править из UI: **Настройки → ASR / LLM-профили / Промпты / Озвучка / Вид**):
@@ -138,7 +152,7 @@ pip install --force-reinstall git+https://github.com/salute-developers/GigaAM.gi
     "engine": "gigaam",
     "language": "ru",
     "gigaam":  { "version": "v3" },
-    "whisper": { "model": "small" }
+    "whisper": { "model": "small", "cpu_threads": 0 }
   },
   "llm": {
     "temperature": 0.3,
@@ -178,6 +192,8 @@ pip install --force-reinstall git+https://github.com/salute-developers/GigaAM.gi
 ```
 
 Пустые поля в `prompts.*` означают «использовать встроенный шаблон». Секреты облачных TTS и LLM хранятся plaintext — приложение локальное и однопользовательское.
+
+`asr.whisper.cpu_threads` — число потоков CPU для faster-whisper. `0` (по умолчанию) означает «по числу ядер»; собственный дефолт CTranslate2 — 4 потока независимо от железа, из-за чего на многоядерных машинах транскрибация шла втрое дольше, чем могла бы.
 
 ### LLM: профили и fallback
 

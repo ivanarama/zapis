@@ -3,12 +3,86 @@
 from __future__ import annotations
 
 import os
+import socket
+import ssl
 import tempfile
-from typing import Literal, Protocol, TypedDict, runtime_checkable
+import urllib.error
+from typing import Iterator, Literal, Optional, Protocol, TypedDict, runtime_checkable
 
 import numpy as np
 
 SAMPLE_RATE = 16_000
+
+# Хост, с которого качаются веса Whisper и языковая модель KenLM.
+HUGGINGFACE_HOST = "huggingface.co"
+# Веса GigaAM качаются с CDN Сбера, а НЕ с HuggingFace (см. gigaam/__init__.py:
+# _URL_DIR). Доступность HF про этот хост ничего не говорит — поэтому в тексте
+# ошибки его надо называть явно.
+GIGAAM_CDN_HOST = "cdn.chatwm.opensmodel.sberdevices.ru"
+
+
+def _exception_chain(exc: BaseException) -> Iterator[BaseException]:
+    """Исключение и всё, что к нему привело (__cause__/__context__)."""
+    seen: set[int] = set()
+    cur: Optional[BaseException] = exc
+    while cur is not None and id(cur) not in seen:
+        seen.add(id(cur))
+        yield cur
+        cur = cur.__cause__ or cur.__context__
+
+
+def _network_reason(exc: BaseException) -> Optional[str]:
+    """Причина сетевого сбоя человеческими словами, либо None, если ошибка
+    вообще не про сеть (нехватка памяти, битый файл, баг в модели)."""
+    for err in _exception_chain(exc):
+        name = type(err).__name__
+
+        if isinstance(err, ssl.SSLCertVerificationError) or name == "SSLCertVerificationError":
+            return (
+                "не прошла проверка TLS-сертификата — обычно это корпоративный "
+                "прокси, подменяющий сертификаты"
+            )
+        if isinstance(err, ssl.SSLError) or name.startswith("SSL"):
+            return "ошибка TLS-соединения"
+
+        # urllib (GigaAM) и httpx (huggingface_hub) сообщают HTTP-код по-разному.
+        code = err.code if isinstance(err, urllib.error.HTTPError) else None
+        if code is None:
+            code = getattr(getattr(err, "response", None), "status_code", None)
+        if isinstance(code, int):
+            if code in (401, 403, 407):
+                return f"сервер ответил {code} — доступ закрыт или прокси требует авторизации"
+            return f"сервер ответил {code}"
+
+        if isinstance(err, (socket.timeout, TimeoutError)) or "Timeout" in name:
+            return "истёк таймаут соединения"
+        if isinstance(err, (ConnectionError, socket.gaierror)) or name in (
+            "URLError", "ConnectError", "ProxyError", "ReadError", "RemoteProtocolError",
+        ):
+            return "соединение не устанавливается — хост недоступен или закрыт файрволом"
+    return None
+
+
+def describe_download_error(exc: BaseException, what: str, host: str) -> Optional[str]:
+    """Объяснение сбоя скачивания модели с указанием конкретного хоста.
+
+    Без этого в UI улетает голый str(exc), и пользователь на другом конце
+    сообщает «не качается, хотя сайт открывается» — про какой именно сайт
+    речь, по такому тексту не понять. Возвращает None, если исключение не
+    сетевое: тогда вызывающий код показывает исходное сообщение как есть.
+    """
+    reason = _network_reason(exc)
+    if reason is None:
+        return None
+    detail = str(exc).strip().replace("\n", " ")
+    if len(detail) > 200:
+        detail = detail[:200] + "…"
+    return (
+        f"Не удалось скачать {what}: {reason}. "
+        f"Проверьте доступ к {host} (интернет, прокси, файрвол) и попробуйте снова. "
+        f"Подробности — в zapis.log рядом с приложением. "
+        f"[{type(exc).__name__}: {detail}]"
+    )
 
 
 def decode_audio_bytes(data: bytes, ext: str, sample_rate: int = SAMPLE_RATE) -> np.ndarray:
