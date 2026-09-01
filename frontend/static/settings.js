@@ -16,6 +16,7 @@
     let currentSettings = null;
     let currentPrompts = null;
     let promptDefaults = null;
+    let diarizationInfo = null;  // доступность sherpa-onnx, список моделей, статус
 
     function open() {
         $('#settings-modal').hidden = false;
@@ -34,6 +35,7 @@
             currentSettings = s;
             currentPrompts = p.current;
             promptDefaults = p.defaults;
+            await refreshDiarizationInfo();
             renderASR();
             renderLLM();
             renderPrompts();
@@ -52,6 +54,93 @@
         const langs = window.ASR_LANGUAGES || ['ru', 'en'];
         langSel.innerHTML = langs.map((l) => `<option value="${l}">${l}</option>`).join('');
         langSel.value = asr.language || 'ru';
+        renderDiarization(asr.diarization || {});
+    }
+
+    function renderDiarization(d) {
+        $('#settings-diarization-enabled').checked = !!d.enabled;
+        $('#settings-diarization-speakers').value = d.num_speakers ?? 0;
+        $('#settings-diarization-threshold').value = d.threshold ?? 0.5;
+
+        const sel = $('#settings-diarization-model');
+        const models = (diarizationInfo && diarizationInfo.models) || {};
+        const names = Object.keys(models);
+        const current = d.embedding_model || names[0] || '';
+        // Модель из настроек может отсутствовать в списке (правили файл руками) —
+        // добавляем её как есть, чтобы сохранение не подменяло чужой выбор.
+        if (current && !names.includes(current)) names.unshift(current);
+        sel.innerHTML = names
+            .map((n) => `<option value="${n}">${models[n] || n}</option>`)
+            .join('');
+        sel.value = current;
+
+        const shift = $('#settings-diarization-shift');
+        const shiftValue = String(d.window_shift_ratio ?? 0.3);
+        // Значение могли выставить руками в settings.json — не подменяем его
+        // ближайшим из списка, а показываем как есть.
+        if (!Array.from(shift.options).some((o) => o.value === shiftValue)) {
+            shift.insertAdjacentHTML(
+                'afterbegin',
+                `<option value="${shiftValue}">Своё значение: ${shiftValue}</option>`,
+            );
+        }
+        shift.value = shiftValue;
+
+        updateDiarizationState();
+    }
+
+    function updateDiarizationState() {
+        const label = $('#diarization-models-state');
+        const btn = $('#btn-download-diarization');
+        if (!diarizationInfo || !diarizationInfo.available) {
+            label.textContent = (diarizationInfo && diarizationInfo.install_hint) || '';
+            btn.disabled = true;
+            return;
+        }
+        const st = diarizationInfo.status || {};
+        if (st.status === 'error') {
+            label.textContent = st.error || 'Ошибка';
+            btn.disabled = false;
+        } else if (st.status === 'loading') {
+            label.textContent = 'Скачиваю модели…';
+            btn.disabled = true;
+        } else if (diarizationInfo.models_ready) {
+            label.textContent = 'Модели на месте.';
+            btn.disabled = true;
+        } else {
+            label.textContent = 'Модели ещё не скачаны (~34 МБ).';
+            btn.disabled = false;
+        }
+    }
+
+    async function refreshDiarizationInfo() {
+        try {
+            const res = await fetch('/api/asr/diarization');
+            diarizationInfo = await res.json();
+        } catch (e) {
+            console.error('diarization info failed', e);
+            diarizationInfo = null;
+        }
+    }
+
+    async function downloadDiarizationModels() {
+        // Настройки сохраняем до скачивания: качать надо ту модель, которую
+        // пользователь только что выбрал в списке, а не сохранённую ранее.
+        await saveAll({ keepOpen: true });
+        const res = await fetch('/api/asr/diarization/download', { method: 'POST' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            alert('Ошибка: ' + (data.error || res.statusText));
+            return;
+        }
+        // Опрашиваем статус, пока идёт загрузка: она занимает десятки секунд.
+        const poll = async () => {
+            await refreshDiarizationInfo();
+            updateDiarizationState();
+            const st = (diarizationInfo && diarizationInfo.status) || {};
+            if (st.status === 'loading') setTimeout(poll, 1500);
+        };
+        poll();
     }
 
     function renderLLM() {
@@ -204,7 +293,8 @@
         $('#settings-theme').value = (currentSettings.app && currentSettings.app.theme) || 'dark';
     }
 
-    async function saveAll() {
+    async function saveAll(options) {
+        const keepOpen = !!(options && options.keepOpen === true);
         const promptsObj = collectPrompts();
         promptsObj.tts_normalize = { system: $('#settings-tts-normalize-prompt').value };
 
@@ -221,6 +311,15 @@
                 whisper: {
                     ...((currentSettings.asr && currentSettings.asr.whisper) || {}),
                     model: $('#settings-whisper-model').value,
+                },
+                diarization: {
+                    ...((currentSettings.asr && currentSettings.asr.diarization) || {}),
+                    enabled: $('#settings-diarization-enabled').checked,
+                    num_speakers: parseInt($('#settings-diarization-speakers').value, 10) || 0,
+                    threshold: parseFloat($('#settings-diarization-threshold').value) || 0.5,
+                    embedding_model: $('#settings-diarization-model').value,
+                    window_shift_ratio:
+                        parseFloat($('#settings-diarization-shift').value) || 0.3,
                 },
             },
             llm: {
@@ -244,12 +343,14 @@
                 alert('Ошибка сохранения: ' + (data.error || res.statusText));
                 return;
             }
+            currentSettings = newSettings;
             // Применить тему сразу
             document.body.dataset.theme = newSettings.app.theme;
             // Перенастроить активный движок, если поменялся
             if (window.applyEngineFromSettings) {
                 await window.applyEngineFromSettings(newSettings.asr.engine);
             }
+            if (keepOpen) return;
             close();
         } catch (e) {
             alert('Ошибка: ' + e.message);
@@ -273,7 +374,8 @@
         $$('[data-close]', $('#settings-modal')).forEach((el) =>
             el.addEventListener('click', close),
         );
-        $('#btn-save-settings').addEventListener('click', saveAll);
+        $('#btn-save-settings').addEventListener('click', () => saveAll());
+        $('#btn-download-diarization').addEventListener('click', downloadDiarizationModels);
         $('#btn-add-profile').addEventListener('click', () => {
             const list = $('#profiles-list');
             const idx = list.children.length;

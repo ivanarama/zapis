@@ -69,6 +69,19 @@
                     </label>
                 </div>
 
+                <!-- Диаризация: скрыта целиком, если пакет sherpa-onnx недоступен -->
+                <div id="diarization-box" hidden>
+                    <label class="field field--check">
+                        <input type="checkbox" id="chk-diarize">
+                        <span>Определять говорящих</span>
+                    </label>
+                    <label class="field" id="speakers-field" hidden>
+                        <span>Сколько говорящих (0 — определить самому)</span>
+                        <input type="number" id="num-speakers" min="0" max="20" step="1" value="0">
+                    </label>
+                    <p class="hint" id="diarization-note" hidden></p>
+                </div>
+
                 <button id="btn-transcribe" class="btn btn--primary btn--block" disabled>
                     Транскрибировать
                 </button>
@@ -323,6 +336,41 @@
                         </select>
                     </label>
                     <p class="hint">Модель скачивается лениво при первой транскрипции на этом размере.</p>
+
+                    <h4 class="settings-subtitle">Говорящие (диаризация)</h4>
+                    <label class="field field--check">
+                        <input type="checkbox" id="settings-diarization-enabled">
+                        <span>Разделять запись по говорящим</span>
+                    </label>
+                    <p class="hint">
+                        Работает с обоими движками. Модели (~34 МБ) скачиваются один раз
+                        с github.com; считается на процессоре и заметно добавляет времени.
+                    </p>
+                    <div class="form-row">
+                        <label class="field">
+                            <span>Число говорящих (0 — авто)</span>
+                            <input type="number" id="settings-diarization-speakers" min="0" max="20" step="1">
+                        </label>
+                        <label class="field">
+                            <span>Порог для авто (меньше — больше людей)</span>
+                            <input type="number" id="settings-diarization-threshold" min="0.1" max="1.5" step="0.05">
+                        </label>
+                    </div>
+                    <label class="field">
+                        <span>Модель голосовых эмбеддингов</span>
+                        <select id="settings-diarization-model"></select>
+                    </label>
+                    <label class="field">
+                        <span>Скорость разметки</span>
+                        <select id="settings-diarization-shift">
+                            <option value="0.3">Быстрее — шаг окна 0.3 (по умолчанию)</option>
+                            <option value="0.1">Точнее — как в pyannote, втрое дольше</option>
+                        </select>
+                    </label>
+                    <div class="btn-row" style="margin-top: 10px; align-items: center;">
+                        <button class="btn btn--ghost btn--sm" id="btn-download-diarization">Скачать модели</button>
+                        <span class="hint" id="diarization-models-state" style="margin: 0;"></span>
+                    </div>
                 </div>
 
                 <!-- LLM profiles -->

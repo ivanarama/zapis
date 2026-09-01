@@ -103,11 +103,14 @@ a = Analysis(
         'kenlm', 'sentencepiece', 'pygtrie',
         'faster_whisper', 'ctranslate2', 'tokenizers',
         'av',
+        # Диаризация: нативную часть sherpa-onnx забирает hooks/hook-sherpa_onnx.py
+        'sherpa_onnx',
         # системное хранилище сертификатов (корпоративный TLS-прокси)
         'truststore',
         'openai', 'anthropic',
         'backend.asr', 'backend.asr.gigaam_engine',
         'backend.asr.whisper_engine', 'backend.asr.factory',
+        'backend.asr.diarize',
         'backend.llm', 'backend.llm.client', 'backend.llm.prompts',
         'backend.config', 'backend.schema', 'backend.formats',
         'backend.tts', 'backend.tts.factory', 'backend.tts.pipeline',
@@ -184,11 +187,14 @@ a = Analysis(
         'kenlm', 'sentencepiece', 'pygtrie',
         'faster_whisper', 'ctranslate2', 'tokenizers',
         'av',
+        # Диаризация: нативную часть sherpa-onnx забирает hooks/hook-sherpa_onnx.py
+        'sherpa_onnx',
         # системное хранилище сертификатов (корпоративный TLS-прокси)
         'truststore',
         'openai', 'anthropic',
         'backend.asr', 'backend.asr.gigaam_engine',
         'backend.asr.whisper_engine', 'backend.asr.factory',
+        'backend.asr.diarize',
         'backend.llm', 'backend.llm.client', 'backend.llm.prompts',
         'backend.config', 'backend.schema', 'backend.formats',
         'backend.tts', 'backend.tts.factory', 'backend.tts.pipeline',

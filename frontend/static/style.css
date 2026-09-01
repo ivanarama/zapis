@@ -463,8 +463,53 @@ textarea { resize: vertical; min-height: 60px; font-family: inherit; }
     align-self: start;
     padding-top: 1px;
 }
+.segment__body { min-width: 0; }
 .segment__text { color: var(--text); line-height: 1.55; }
 .segment__text mark { background: rgba(244, 198, 106, 0.35); color: inherit; padding: 0 2px; border-radius: 2px; }
+
+/* Подпись говорящего. Цвет — по индексу (8 штук по кругу): взгляд ловит
+   смену собеседника по цвету быстрее, чем по тексту подписи. */
+.segment__speaker {
+    display: inline-block;
+    margin-bottom: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 1px 7px;
+    border-radius: 10px;
+    background: var(--speaker-bg, rgba(106, 169, 255, 0.14));
+    color: var(--speaker-fg, #6aa9ff);
+}
+.segment__speaker[data-speaker="0"] { --speaker-fg: #6aa9ff; --speaker-bg: rgba(106, 169, 255, 0.14); }
+.segment__speaker[data-speaker="1"] { --speaker-fg: #f4c66a; --speaker-bg: rgba(244, 198, 106, 0.14); }
+.segment__speaker[data-speaker="2"] { --speaker-fg: #7fd18b; --speaker-bg: rgba(127, 209, 139, 0.14); }
+.segment__speaker[data-speaker="3"] { --speaker-fg: #d98ce0; --speaker-bg: rgba(217, 140, 224, 0.14); }
+.segment__speaker[data-speaker="4"] { --speaker-fg: #6fd3d3; --speaker-bg: rgba(111, 211, 211, 0.14); }
+.segment__speaker[data-speaker="5"] { --speaker-fg: #f09b7a; --speaker-bg: rgba(240, 155, 122, 0.14); }
+.segment__speaker[data-speaker="6"] { --speaker-fg: #a8b1ff; --speaker-bg: rgba(168, 177, 255, 0.14); }
+.segment__speaker[data-speaker="7"] { --speaker-fg: #c3d16a; --speaker-bg: rgba(195, 209, 106, 0.14); }
+
+/* Мягкая ошибка: расшифровка есть, но что-то из необязательного не сложилось */
+.notice {
+    margin: 0 0 12px;
+    padding: 9px 12px;
+    border-radius: var(--radius-sm);
+    background: rgba(244, 198, 106, 0.12);
+    border: 1px solid rgba(244, 198, 106, 0.3);
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+/* Подзаголовок внутри вкладки настроек */
+.settings-subtitle {
+    margin: 20px 0 10px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+}
 
 /* ----- AI ----- */
 .ai-presets {

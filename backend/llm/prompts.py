@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Literal
 
 from ..config import get_settings
+from ..formats import speaker_label
 from ..schema import PromptTemplate
 
 PresetKey = Literal["youtube_description", "youtube_timecodes", "telegram_post", "article"]
@@ -119,6 +120,11 @@ def _format_segments_for_timecodes(segments: list[dict], limit: int = 120) -> st
         text = (seg.get("text") or "").strip().replace("\n", " ")
         if not text:
             continue
+        # Если расшифровка размечена по говорящим, подпись идёт в строку:
+        # смена говорящего — сильный сигнал границы темы для таймкодов.
+        speaker = seg.get("speaker")
+        if speaker is not None:
+            text = f"{speaker_label(speaker)}: {text}"
         lines.append(f"{_mmss(start)} {text[:140]}")
     return "\n".join(lines)
 
