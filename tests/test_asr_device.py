@@ -54,6 +54,36 @@ def test_set_device_drops_cached_engines():
     assert factory.get_engine("whisper") is not eng
 
 
+def test_same_device_keeps_loaded_engines():
+    """Настройки сохраняются целиком при правке любого поля, и set_device
+    зовётся на каждое сохранение. Если устройство не менялось, прогретую
+    модель терять нельзя."""
+    _reset()
+    factory.set_device("cpu", {"whisper": "cuda"})
+    eng = factory.get_engine("whisper")
+    assert factory.set_device("cpu", {"whisper": "cuda"}) is False
+    assert factory.get_engine("whisper") is eng, "движок пересоздали без причины"
+
+
+def test_changed_device_reports_change():
+    """А вот реальная смена обязана отчитаться — по этому признаку сервер
+    решает, писать ли в лог, и пересоздаёт движки."""
+    _reset()
+    factory.set_device("cpu", {})
+    assert factory.set_device("cuda", {}) is True
+    assert factory.set_device("cuda", {"gigaam": "cpu"}) is True
+    assert factory.set_device("cuda", {"gigaam": "cpu"}) is False
+
+
+def test_empty_override_equals_absent_override():
+    """None и пустая строка означают «наследовать» — это не изменение
+    настройки, а тот же самый случай, что и отсутствующий ключ."""
+    _reset()
+    factory.set_device("cpu", {"whisper": "cuda"})
+    assert factory.set_device("cpu", {"whisper": "cuda", "gigaam": None}) is False
+    assert factory.set_device("cpu", {"whisper": "cuda", "gigaam": ""}) is False
+
+
 def test_settings_schema_allows_per_engine_device():
     s = ASRSettings.model_validate({
         "device": "cpu",

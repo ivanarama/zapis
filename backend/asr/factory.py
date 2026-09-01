@@ -59,18 +59,27 @@ def set_active_engine(name: str) -> Transcriber:
     return eng
 
 
-def set_device(device: str, overrides: Optional[dict[str, Optional[str]]] = None) -> None:
+def set_device(device: str, overrides: Optional[dict[str, Optional[str]]] = None) -> bool:
     """Задать устройство: общее и, при необходимости, отдельное для движков.
 
+    Возвращает True, если устройство действительно поменялось.
+
     Устройство фиксируется в момент создания движка, поэтому уже созданные
-    сбрасываем — иначе настройка не подействует до перезапуска. Создание
-    дешёвое, модель грузится лениво, так что терять тут нечего.
+    сбрасываем — иначе настройка не подействует до перезапуска. Но сбрасывать
+    их на каждый вызов нельзя: настройки сохраняются целиком при правке любого
+    поля, и пользователь, поменявший промпт, терял бы прогретую модель и ждал
+    её повторной загрузки. Поэтому при неизменившемся устройстве не делаем
+    ничего.
     """
     global _device, _device_overrides
+    normalized = {k: v for k, v in (overrides or {}).items() if v}
     with _lock:
+        if device == _device and normalized == _device_overrides:
+            return False
         _device = device
-        _device_overrides = {k: v for k, v in (overrides or {}).items() if v}
+        _device_overrides = normalized
         _engines.clear()
+        return True
 
 
 def available_engines() -> list[str]:

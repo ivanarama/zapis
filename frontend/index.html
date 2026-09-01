@@ -323,6 +323,42 @@
                         </select>
                     </label>
                     <p class="hint">Модель скачивается лениво при первой транскрипции на этом размере.</p>
+
+                    <label class="field">
+                        <span>Вычислительное устройство</span>
+                        <select id="settings-device">
+                            <option value="auto">Авто</option>
+                            <option value="cpu">Процессор</option>
+                            <option value="cuda">Видеокарта (NVIDIA)</option>
+                        </select>
+                    </label>
+                    <div class="form-row">
+                        <label class="field">
+                            <span>Отдельно для GigaAM</span>
+                            <select id="settings-device-gigaam">
+                                <option value="">Как общее</option>
+                                <option value="auto">Авто</option>
+                                <option value="cpu">Процессор</option>
+                                <option value="cuda">Видеокарта</option>
+                            </select>
+                        </label>
+                        <label class="field">
+                            <span>Отдельно для Whisper</span>
+                            <select id="settings-device-whisper">
+                                <option value="">Как общее</option>
+                                <option value="auto">Авто</option>
+                                <option value="cpu">Процессор</option>
+                                <option value="cuda">Видеокарта</option>
+                            </select>
+                        </label>
+                    </div>
+                    <p class="hint">
+                        Движки считают на разных стеках, поэтому устройство у них раздельное.
+                        В готовой сборке видеокарту умеет только Whisper (нужен драйвер CUDA 12
+                        и cuDNN 9); GigaAM сам откатится на процессор. Применяется сразу,
+                        перезапуск не нужен — модель загрузится на новом устройстве при
+                        следующей транскрибации.
+                    </p>
                 </div>
 
                 <!-- LLM profiles -->
