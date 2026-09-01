@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gc
 import logging
 import os
 from typing import Optional
@@ -141,13 +142,24 @@ class WhisperEngine:
         finally:
             self._loading = False
 
+    def _drop_model(self) -> None:
+        """Отпускает загруженную модель и сразу собирает мусор.
+
+        Без явного сбора старая модель доживает до ближайшей автоматической
+        сборки, и в момент загрузки новой в памяти оказываются обе. На переходе
+        small → large-v3 это лишние полтора гигабайта в пике — на машине с 8 ГБ
+        разница между «перезагрузилось» и «не хватило памяти».
+        """
+        self._model = None
+        gc.collect()
+
     def set_model_size(self, size: str) -> None:
         """Переключение размера модели — приведёт к перезагрузке при следующем
         вызове transcribe()."""
         if size == self._model_size:
             return
         self._model_size = size
-        self._model = None
+        self._drop_model()
         self._error = None
 
     def set_cpu_threads(self, threads: int) -> None:
@@ -156,7 +168,7 @@ class WhisperEngine:
         if threads == self._cpu_threads:
             return
         self._cpu_threads = threads
-        self._model = None
+        self._drop_model()
         self._error = None
 
     def transcribe(
