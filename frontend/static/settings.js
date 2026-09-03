@@ -362,6 +362,11 @@
             if (window.applyEngineFromSettings) {
                 await window.applyEngineFromSettings(newSettings.asr.engine);
             }
+            // Галочка диаризации на главной — отражение сохранённой настройки:
+            // обновляем сразу, а не состоянием на момент загрузки страницы.
+            if (window.refreshDiarization) {
+                await window.refreshDiarization();
+            }
             if (keepOpen) return;
             close();
         } catch (e) {

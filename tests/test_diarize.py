@@ -184,15 +184,37 @@ def test_unload_returns_immediately_while_busy():
 
 
 def test_diarizer_reports_missing_package_instead_of_crashing():
-    """Если sherpa-onnx не установлен, движок обязан отдать понятный статус,
-    а не уронить транскрибацию импортом."""
+    """Если sherpa-onnx не установлен, initialize() обязан поймать ImportError
+    и выставить понятный _error, а не уронить транскрибацию импортом."""
     from backend.asr import diarize as d
 
-    eng = d.Diarizer()
-    eng._error = d.INSTALL_HINT
+    # None в sys.modules заставляет `import sherpa_onnx` поднять ImportError —
+    # тот же паттерн, что sys.modules['kenlm'] = None в test_asr_frozen.py.
+    saved = sys.modules.get("sherpa_onnx")
+    sys.modules["sherpa_onnx"] = None
+    try:
+        eng = d.Diarizer()
+        eng.initialize()
+    finally:
+        if saved is None:
+            sys.modules.pop("sherpa_onnx", None)
+        else:
+            sys.modules["sherpa_onnx"] = saved
     st = eng.get_status()
     assert st["status"] == "error"
     assert "sherpa-onnx" in st["error"]
+
+
+def test_unsorted_words_get_correct_speakers():
+    """faster-whisper изредка выдаёт сегмент с таймкодами «в прошлое»: слово,
+    пришедшее раньше предыдущего, обязано получить своего говорящего, а не
+    чужого от ближайшего соседа (указатель base уже прошёл его реплику)."""
+    words = [_w("позднее", 5.0, 5.4), _w("раннее", 0.0, 0.5)]
+    turns = [_turn(0.0, 1.0, 0), _turn(4.8, 6.0, 1)]
+    assign_speakers(words, turns)
+    by_text = {w["text"]: w["speaker"] for w in words}
+    assert by_text["раннее"] == 0
+    assert by_text["позднее"] == 1
 
 
 def _run_all():
@@ -202,9 +224,9 @@ def _run_all():
         try:
             t()
             print(f"  ok  {t.__name__}")
-        except AssertionError as e:
+        except Exception as e:  # noqa: BLE001 — один упавший тест не роняет прогон
             failed += 1
-            print(f"FAIL  {t.__name__}: {e}")
+            print(f"FAIL  {t.__name__}: {e!r}")
     print(f"\n{len(tests) - failed}/{len(tests)} passed")
     return 1 if failed else 0
 

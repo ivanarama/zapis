@@ -363,6 +363,7 @@ class Diarizer:
             return
         try:
             self._sd = None
+            self._config = None
         finally:
             self._lock.release()
 
@@ -393,15 +394,24 @@ class Diarizer:
         if audio.size < SAMPLE_RATE:  # меньше секунды — делить некого
             return []
 
-        expected = int(self._sd.sample_rate)
-        if expected != SAMPLE_RATE:
-            raise RuntimeError(
-                f"Модель диаризации ждёт {expected} Гц, а декодер отдаёт {SAMPLE_RATE} Гц"
-            )
-
         import sherpa_onnx
 
         with self._lock:
+            # unload() мог освободить модели в окне между проверкой _sd выше
+            # и захватом лока (выключили диаризацию в настройках) — перепроверяем
+            # и при необходимости грузим заново, иначе set_config падает на None.
+            if self._sd is None or self._config is None:
+                self.initialize()
+            if self._error:
+                raise RuntimeError(self._error)
+            if self._sd is None:
+                raise RuntimeError("Диаризация ещё загружается")
+
+            expected = int(self._sd.sample_rate)
+            if expected != SAMPLE_RATE:
+                raise RuntimeError(
+                    f"Модель диаризации ждёт {expected} Гц, а декодер отдаёт {SAMPLE_RATE} Гц"
+                )
             # Число говорящих задаётся на каждый запуск, поэтому кластеризацию
             # обновляем перед каждым проходом. Модели при этом не
             # перезагружаются — set_config меняет только конфигурацию.

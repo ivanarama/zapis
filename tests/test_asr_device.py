@@ -102,6 +102,21 @@ def test_settings_schema_rejects_unknown_device():
     raise AssertionError("неизвестное устройство должно отвергаться схемой")
 
 
+def test_set_device_frees_models_of_cached_engines():
+    """Сброс кеша не бросает прогретые модели на милость сборщика мусора:
+    движок обязан явно освободить модель до пересоздания, иначе в момент
+    загрузки новой на другом устройстве обе оказываются в памяти
+    (small→large-v3 — лишние полтора гигабайта в пике на машинах с 8 ГБ)."""
+    _reset()
+    factory.set_device("cpu", {})
+    factory.get_engine("whisper")
+    eng = factory.get_engine("whisper")
+    freed = []
+    eng.unload = lambda: freed.append(True)  # type: ignore[method-assign]
+    factory.set_device("cuda", {})
+    assert freed, "set_device обязан звать unload у кешированных движков"
+
+
 def _run():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0

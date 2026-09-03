@@ -171,6 +171,12 @@ class WhisperEngine:
         self._drop_model()
         self._error = None
 
+    def unload(self) -> None:
+        """Полное освобождение модели (фабрика зовёт при смене устройства) —
+        загрузится заново при следующем transcribe()."""
+        self._drop_model()
+        self._error = None
+
     def transcribe(
         self,
         file_bytes: bytes,

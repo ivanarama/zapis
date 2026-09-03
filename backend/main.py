@@ -258,7 +258,11 @@ async def diarization_status():
     from .asr import diarize as diarization
 
     d = get_settings().asr.diarization
-    eng = diarization.get_diarizer(
+    # get_diarizer синхронизирует настройки с синглтоном и берёт его лок; тот
+    # же лок diarize() держит минуты на длинной записи. В event loop ждать
+    # нельзя — заморозился бы весь интерфейс, уводим в поток.
+    eng = await asyncio.to_thread(
+        diarization.get_diarizer,
         d.embedding_model, d.num_threads, d.window_shift_ratio,
     )
     return {
@@ -287,7 +291,9 @@ async def diarization_download():
         return JSONResponse({"error": diarization.INSTALL_HINT}, status_code=400)
 
     d = get_settings().asr.diarization
-    eng = diarization.get_diarizer(
+    # Тот же лок, что и в GET выше: захватываем в потоке, не в event loop.
+    eng = await asyncio.to_thread(
+        diarization.get_diarizer,
         d.embedding_model, d.num_threads, d.window_shift_ratio,
     )
     if eng.models_ready():

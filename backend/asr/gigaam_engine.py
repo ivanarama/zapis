@@ -468,6 +468,19 @@ class GigaamEngine:
         finally:
             self._loading = False
 
+    def unload(self) -> None:
+        """Отпускает модель GigaAM и декодер KenLM (фабрика зовёт при смене
+        устройства). torch-модули держат внутренние циклы ссылок, поэтому
+        собираем мусор явно — иначе старая модель доживала бы до ближайшей
+        автоматической сборки и в момент загрузки новой обе оказались бы
+        в памяти (см. _drop_model у Whisper)."""
+        self._model = None
+        self._longform = None
+        self._decoder = None
+        self._loaded = False
+        self._error = None
+        gc.collect()
+
     def transcribe(
         self,
         file_bytes: bytes,

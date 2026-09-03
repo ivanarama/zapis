@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gc
 import logging
 import threading
 from typing import Optional
@@ -78,7 +79,20 @@ def set_device(device: str, overrides: Optional[dict[str, Optional[str]]] = None
             return False
         _device = device
         _device_overrides = normalized
+        # Прежде чем бросать движки, явно отпускаем их модели: без этого
+        # старая модель доживала до ближайшей автоматической сборки мусора,
+        # и в момент загрузки новой на другом устройстве обе оказывались
+        # в памяти (small→large-v3 — это лишние полтора гигабайта в пике).
+        for eng in _engines.values():
+            unload = getattr(eng, "unload", None)
+            if unload is None:
+                continue
+            try:
+                unload()
+            except Exception:
+                log.exception("Не удалось освободить движок ASR при смене устройства")
         _engines.clear()
+        gc.collect()
         return True
 
 

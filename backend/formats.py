@@ -35,6 +35,11 @@ def assign_speakers(words: list[dict], turns: list[dict]) -> list[dict]:
         return words
 
     ordered = sorted(turns, key=lambda t: (t["start"], t["end"]))
+    # Слова тоже обязаны идти по возрастанию start: указатель base движется
+    # только вперёд, и слово с «уехавшим назад» таймкодом (сегменты-галлюцинации
+    # faster-whisper) уже не находит свою реплику — его пометил бы чужой
+    # говорящий из _fill_speaker_gaps.
+    words = sorted(words, key=lambda w: float(w["start"]))
     base = 0
     for w in words:
         ws = float(w["start"])

@@ -287,35 +287,49 @@
     // ----- Диаризация (кто говорит) -----
 
     async function setupDiarization() {
-        const box = $('#diarization-box');
-        const chk = $('#chk-diarize');
-        const field = $('#speakers-field');
-        const note = $('#diarization-note');
+        $('#chk-diarize').addEventListener('change', syncDiarizationUI);
+        await refreshDiarization();
+    }
+
+    // Настройки диаризации меняются не только перезапуском: сохранение настроек
+    // и кнопка «Скачать модели» тоже влияют на них. Галочка на главной обязана
+    // подтягиваться вслед за сохранённым состоянием, а не жить значением на
+    // момент загрузки страницы — иначе транскрипция молча уходит с diarize=false
+    // при включённой в настройках диаризации.
+    async function refreshDiarization() {
         try {
             const res = await fetch('/api/asr/diarization');
             const info = await res.json();
             state.diarization = info;
+            const box = $('#diarization-box');
             // Пакета sherpa-onnx нет — галочку не показываем вовсе, чтобы не
             // предлагать заведомо нерабочую функцию.
-            if (!info.available) return;
+            if (!info.available) {
+                box.hidden = true;
+                return;
+            }
 
             box.hidden = false;
-            chk.checked = !!info.enabled;
+            $('#chk-diarize').checked = !!info.enabled;
             $('#num-speakers').value = info.num_speakers ?? 0;
-
-            const sync = () => {
-                field.hidden = !chk.checked;
-                const needDownload = chk.checked && !info.models_ready;
-                note.hidden = !needDownload;
-                if (needDownload) {
-                    note.textContent =
-                        'Модели (~34 МБ) скачаются с github.com при первом запуске.';
-                }
-            };
-            chk.addEventListener('change', sync);
-            sync();
+            syncDiarizationUI();
         } catch (e) {
             console.error('diarization info failed', e);
+        }
+    }
+    window.refreshDiarization = refreshDiarization;
+
+    function syncDiarizationUI() {
+        const chk = $('#chk-diarize');
+        const field = $('#speakers-field');
+        const note = $('#diarization-note');
+        field.hidden = !chk.checked;
+        const info = state.diarization;
+        const needDownload = chk.checked && info && !info.models_ready;
+        note.hidden = !needDownload;
+        if (needDownload) {
+            note.textContent =
+                'Модели (~34 МБ) скачаются с github.com при первом запуске.';
         }
     }
 
