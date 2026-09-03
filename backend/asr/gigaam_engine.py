@@ -247,9 +247,24 @@ class CTCDecoderWithLM:
             return True
         except ImportError:
             pass
-        log.info("kenlm not found — installing...")
+
         import subprocess
         import sys
+
+        # В собранном приложении sys.executable — это сам Zapis.exe, а не
+        # Python: строка ниже запустила бы ВТОРУЮ КОПИЮ приложения (аргументы
+        # «-m pip install» бутлоадер просто отдаёт в sys.argv, где их никто не
+        # читает) и повисла бы в check_call, пока пользователь её не закроет.
+        # pip в дистрибутиве всё равно нет — молча идём без языковой модели.
+        # Тот же приём, что в GigaamEngine.install_and_init.
+        if getattr(sys, "frozen", False):
+            log.warning(
+                "kenlm недоступен в сборке (нет модуля или Visual C++ Runtime) — "
+                "декодирование пойдёт без языковой модели"
+            )
+            return False
+
+        log.info("kenlm not found — installing...")
         try:
             subprocess.check_call(
                 [sys.executable, "-m", "pip", "install", "kenlm"],
