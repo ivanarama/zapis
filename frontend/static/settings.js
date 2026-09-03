@@ -54,6 +54,10 @@
         const langs = window.ASR_LANGUAGES || ['ru', 'en'];
         langSel.innerHTML = langs.map((l) => `<option value="${l}">${l}</option>`).join('');
         langSel.value = asr.language || 'ru';
+        $('#settings-device').value = asr.device || 'auto';
+        // null/отсутствие = «наследовать общее», в списке это пустое значение.
+        $('#settings-device-gigaam').value = (asr.gigaam && asr.gigaam.device) || '';
+        $('#settings-device-whisper').value = (asr.whisper && asr.whisper.device) || '';
         renderDiarization(asr.diarization || {});
     }
 
@@ -308,9 +312,17 @@
                 ...(currentSettings.asr || {}),
                 engine: $('#settings-engine').value,
                 language: $('#settings-language').value,
+                device: $('#settings-device').value,
+                gigaam: {
+                    ...((currentSettings.asr && currentSettings.asr.gigaam) || {}),
+                    // Пустое значение = наследовать общее; схема ждёт null,
+                    // пустая строка ей не подойдёт.
+                    device: $('#settings-device-gigaam').value || null,
+                },
                 whisper: {
                     ...((currentSettings.asr && currentSettings.asr.whisper) || {}),
                     model: $('#settings-whisper-model').value,
+                    device: $('#settings-device-whisper').value || null,
                 },
                 diarization: {
                     ...((currentSettings.asr && currentSettings.asr.diarization) || {}),

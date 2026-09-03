@@ -61,6 +61,27 @@ app = FastAPI(title="Zapis", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR / "static")), name="static")
 
 
+def _apply_asr_device(settings: Settings) -> bool:
+    """Прокидывает устройство из настроек в фабрику движков.
+
+    Фабрика сама решает, менялось ли оно: при том же устройстве созданные
+    движки (а с ними и прогретые модели) не сбрасываются.
+    """
+    changed = asr_factory.set_device(
+        settings.asr.device,
+        {
+            "gigaam": settings.asr.gigaam.device,
+            "whisper": settings.asr.whisper.device,
+        },
+    )
+    if changed:
+        log.info(
+            "Устройство ASR: общее=%s, gigaam=%s, whisper=%s — движки пересоздадутся",
+            settings.asr.device, settings.asr.gigaam.device, settings.asr.whisper.device,
+        )
+    return changed
+
+
 @app.on_event("startup")
 async def _startup():
     """Регистрируем активный ASR-движок и устройство. Саму модель НЕ грузим —
@@ -68,13 +89,7 @@ async def _startup():
     Так открытие приложения ради озвучки не вкачивает ASR-модель в память."""
     settings = get_settings()
     # Устройство — до выбора движка: оно фиксируется при создании движка.
-    asr_factory.set_device(
-        settings.asr.device,
-        {
-            "gigaam": settings.asr.gigaam.device,
-            "whisper": settings.asr.whisper.device,
-        },
-    )
+    _apply_asr_device(settings)
     asr_factory.set_active_engine(settings.asr.engine)
 
 
@@ -407,6 +422,11 @@ async def settings_put(request: Request):
             from .asr import diarize as diarization
 
             diarization.unload()
+        # Устройство применяем сразу: раньше смена CPU/GPU требовала
+        # перезапуска приложения, хотя размер модели Whisper подхватывался на
+        # лету. Прогретую модель это не роняет — движки пересоздаются только
+        # при реальном изменении устройства.
+        _apply_asr_device(new_settings)
         return {"ok": True, "settings": new_settings.model_dump()}
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=400)
