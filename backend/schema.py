@@ -99,12 +99,45 @@ class WhisperSettings(BaseModel):
     device: Optional[Literal["auto", "cpu", "cuda"]] = None
 
 
+class DiarizationSettings(BaseModel):
+    """Разделение записи по говорящим (sherpa-onnx).
+
+    Выключено по умолчанию: это +34 МБ моделей и заметное время сверх
+    транскрибации, а нужно оно далеко не каждой записи.
+    """
+
+    enabled: bool = False
+    # 0 = определить число говорящих автоматически (по threshold). Если оно
+    # известно заранее — указать явно: результат заметно лучше, чем у
+    # авто-кластеризации.
+    num_speakers: int = Field(default=0, ge=0, le=20)
+    # Порог кластеризации при num_speakers=0. Меньше — больше говорящих.
+    threshold: float = Field(default=0.5, ge=0.1, le=1.5)
+    # Модель голосовых эмбеддингов — имя файла из релизов sherpa-onnx (список
+    # см. backend/asr/diarize.py: EMBEDDING_MODELS). Тип str, а не Literal:
+    # набор моделей в апстриме пополняется, а неизвестное имя безопасно
+    # превращается в ошибку скачивания с понятным текстом.
+    embedding_model: str = "wespeaker_en_voxceleb_resnet34_LM.onnx"
+    # Потоков CPU для onnxruntime. 0 = по числу ядер: sherpa-onnx по умолчанию
+    # берёт ровно один поток, и на многоядерной машине это кратно дольше
+    # (те же грабли, что были у CTranslate2 в Whisper).
+    num_threads: int = Field(default=0, ge=0, le=256)
+    # Шаг окна сегментации (доля от окна). Главный регулятор «скорость против
+    # точности»: 0.1 — как в pyannote (каждый участок просматривается 10 раз),
+    # 0.3 — втрое быстрее. На замерах (см. README) 0.1 и 0.3 давали одинаковую
+    # разметку, а 0.5 уже разваливал кластеризацию, поэтому по умолчанию 0.3.
+    window_shift_ratio: float = Field(default=0.3, ge=0.05, le=0.9)
+
+
 class ASRSettings(BaseModel):
     engine: Literal["gigaam", "whisper"] = "gigaam"
     language: str = "ru"
     device: Literal["auto", "cpu", "cuda"] = "auto"
     gigaam: GigaamSettings = GigaamSettings()
     whisper: WhisperSettings = WhisperSettings()
+    # Диаризация не привязана к движку: она работает по таймкодам слов,
+    # которые отдают оба.
+    diarization: DiarizationSettings = DiarizationSettings()
 
 
 class PromptTemplate(BaseModel):

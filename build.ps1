@@ -153,6 +153,9 @@ $specLines = @(
     "        'tokenizers',"
     '        # pyav -- audio decoder shared by both ASR engines'
     "        'av',"
+    '        # Диаризация: нативную часть sherpa-onnx (lib/*.dll + .pyd в'
+    '        # namespace-пакете) забирает hooks/hook-sherpa_onnx.py.'
+    "        'sherpa_onnx',"
     '        # системное хранилище сертификатов (корпоративный TLS-прокси)'
     "        'truststore',"
     '        # LLM clients'
@@ -162,6 +165,7 @@ $specLines = @(
     "        'backend.asr',"
     "        'backend.asr.gigaam_engine',"
     "        'backend.asr.whisper_engine',"
+    "        'backend.asr.diarize',"
     "        'backend.asr.factory',"
     "        'backend.llm',"
     "        'backend.llm.client',"

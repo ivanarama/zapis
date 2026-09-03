@@ -24,6 +24,8 @@
         currentId: null,   // id открытой сохранённой расшифровки
         aiBlocks: [],       // накопленные ИИ-блоки текущей расшифровки
         library: [],        // лёгкий список сохранённых расшифровок
+        diarization: null,  // ответ /api/asr/diarization (доступность, модели)
+        warning: null,      // мягкая ошибка последнего прогона (диаризация)
     };
 
     document.addEventListener('DOMContentLoaded', init);
@@ -34,6 +36,7 @@
         setupTabs();
         setupUpload();
         setupEngineSelector();
+        await setupDiarization();
         setupTranscribe();
         setupExport();
         setupAIPresets();
@@ -281,6 +284,51 @@
         btn.disabled = !state.file || !state.statusReady;
     }
 
+    // ----- Диаризация (кто говорит) -----
+
+    async function setupDiarization() {
+        const box = $('#diarization-box');
+        const chk = $('#chk-diarize');
+        const field = $('#speakers-field');
+        const note = $('#diarization-note');
+        try {
+            const res = await fetch('/api/asr/diarization');
+            const info = await res.json();
+            state.diarization = info;
+            // Пакета sherpa-onnx нет — галочку не показываем вовсе, чтобы не
+            // предлагать заведомо нерабочую функцию.
+            if (!info.available) return;
+
+            box.hidden = false;
+            chk.checked = !!info.enabled;
+            $('#num-speakers').value = info.num_speakers ?? 0;
+
+            const sync = () => {
+                field.hidden = !chk.checked;
+                const needDownload = chk.checked && !info.models_ready;
+                note.hidden = !needDownload;
+                if (needDownload) {
+                    note.textContent =
+                        'Модели (~34 МБ) скачаются с github.com при первом запуске.';
+                }
+            };
+            chk.addEventListener('change', sync);
+            sync();
+        } catch (e) {
+            console.error('diarization info failed', e);
+        }
+    }
+
+    function diarizationParams(params) {
+        const box = $('#diarization-box');
+        if (!box || box.hidden) return;
+        const on = $('#chk-diarize').checked;
+        params.set('diarize', on ? 'true' : 'false');
+        if (on) {
+            params.set('speakers', String(parseInt($('#num-speakers').value, 10) || 0));
+        }
+    }
+
     function setupTranscribe() {
         $('#btn-transcribe').addEventListener('click', transcribe);
     }
@@ -299,6 +347,10 @@
             engine: $('#select-engine').value,
             language: $('#select-language').value,
         });
+        diarizationParams(params);
+        $('#progress-text').textContent = params.get('diarize') === 'true'
+            ? 'Транскрибация и разметка говорящих…'
+            : 'Транскрибация…';
 
         try {
             const res = await fetch(`/api/transcribe?${params.toString()}`, {
@@ -313,6 +365,9 @@
             state.result = data.result;
             state.currentId = null;
             state.aiBlocks = [];
+            // Диаризация могла не получиться — расшифровка при этом валидна,
+            // но молчать об отсутствии подписей нельзя.
+            state.warning = data.warning || null;
             renderTranscript(state.result);
             renderAiHistory();
             // Сначала сохраняем расшифровку — нужен currentId для сохранения ИИ-блоков.
@@ -336,26 +391,37 @@
         root.classList.remove('empty');
         $('#transcript-toolbar').hidden = false;
         const segments = result.segments || [];
+        const notice = state.warning
+            ? `<div class="notice">${escapeHtml(state.warning)}</div>`
+            : '';
         if (!segments.length) {
-            root.innerHTML = '<div class="empty__hint">Пустой результат.</div>';
+            root.innerHTML = notice + '<div class="empty__hint">Пустой результат.</div>';
             return;
         }
-        root.innerHTML = segments
-            .map(
-                (s) => `
+        root.innerHTML = notice + segments
+            .map((s) => {
+                // Подпись показываем только на смене говорящего: сегменты уже
+                // разрезаны по репликам, и подпись у каждого дробит чтение.
+                const speaker = s.speaker;
+                const badge = speaker == null
+                    ? ''
+                    : `<span class="segment__speaker" data-speaker="${speaker % 8}">Спикер ${speaker + 1}</span>`;
+                return `
             <div class="segment" data-start="${s.start}">
                 <div class="segment__time">${formatTime(s.start)}</div>
-                <div class="segment__text">${escapeHtml(s.text || '')}</div>
-            </div>`,
-            )
+                <div class="segment__body">${badge}<div class="segment__text">${escapeHtml(s.text || '')}</div></div>
+            </div>`;
+            })
             .join('');
-        // Клик на тайминг копирует "M:SS — текст"
+        // Клик на тайминг копирует "M:SS — текст" (с подписью, если она есть)
         root.querySelectorAll('.segment__time').forEach((el) => {
             el.addEventListener('click', () => {
                 const parent = el.parentElement;
                 const t = el.textContent;
+                const speaker = parent.querySelector('.segment__speaker');
                 const txt = parent.querySelector('.segment__text').textContent;
-                navigator.clipboard.writeText(`${t} — ${txt}`).catch(() => {});
+                const body = speaker ? `${speaker.textContent}: ${txt}` : txt;
+                navigator.clipboard.writeText(`${t} — ${body}`).catch(() => {});
                 el.style.color = 'var(--ok)';
                 setTimeout(() => (el.style.color = ''), 800);
             });
@@ -647,6 +713,7 @@
             state.result = rec.result || {};
             state.currentId = rec.id;
             state.aiBlocks = rec.ai_blocks || [];
+            state.warning = null;  // предупреждение относилось к прошлому прогону
             renderTranscript(state.result);
             renderAiHistory();
             $('#transcript-search').value = '';

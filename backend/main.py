@@ -148,11 +148,53 @@ async def asr_set_engine(body: SetEngineBody):
     return {"ok": True, "status": asr_factory.get_active_engine().get_status()}
 
 
+def _diarize_result(
+    result: dict,
+    data: bytes,
+    filename: str,
+    num_speakers: Optional[int] = None,
+) -> tuple[dict, Optional[str]]:
+    """Размечает готовую расшифровку по говорящим.
+
+    Сбой диаризации не должен стоить пользователю всей расшифровки — она уже
+    посчитана и стоила минут работы. Поэтому текст возвращаем как есть, а
+    причину отдаём отдельным предупреждением: молча отдать расшифровку без
+    подписей нельзя, отсутствие подписей видно сразу и выглядит как баг.
+    """
+    from .asr import diarize as diarization
+    from .asr.base import decode_audio_bytes
+
+    d = get_settings().asr.diarization
+    try:
+        eng = diarization.get_diarizer(
+            d.embedding_model, d.num_threads, d.window_shift_ratio,
+        )
+        ext = filename.rsplit(".", maxsplit=1)[-1] if "." in filename else "wav"
+        # Второе декодирование того же файла (первое было внутри ASR-движка):
+        # пара секунд на часовой записи против переделки интерфейса движков
+        # ради необязательной функции. Важно, что оно ПОСЛЕ транскрибации —
+        # два float32-буфера по 230 МБ рядом на 8 ГБ ни к чему.
+        pcm = decode_audio_bytes(data, ext)
+        want = d.num_speakers if num_speakers is None else num_speakers
+        try:
+            turns = eng.diarize(pcm, num_speakers=want or 0, threshold=d.threshold)
+        finally:
+            del pcm
+        if not turns:
+            return result, "Диаризация не нашла реплик — текст остался без подписей."
+        return formats.apply_speakers(result, turns), None
+    except Exception as exc:  # noqa: BLE001 — расшифровку отдаём в любом случае
+        log.exception("Диаризация не удалась")
+        return result, f"Расшифровка готова, но говорящих определить не удалось: {exc}"
+
+
 @app.post("/api/transcribe")
 async def api_transcribe(
     file: UploadFile = File(...),
     engine: Optional[str] = None,
     language: Optional[str] = None,
+    diarize: Optional[bool] = None,
+    speakers: Optional[int] = None,
 ):
     try:
         data = await file.read()
@@ -174,10 +216,80 @@ async def api_transcribe(
 
         # ASR — CPU/GPU-bound, выносим в thread (там же ленивая инициализация)
         result = await asyncio.to_thread(eng.transcribe, data, file.filename, lang)
-        return {"ok": True, "result": result}
+
+        warning: Optional[str] = None
+        want_diarization = (
+            settings.asr.diarization.enabled if diarize is None else bool(diarize)
+        )
+        if want_diarization:
+            result, warning = await asyncio.to_thread(
+                _diarize_result, result, data, file.filename, speakers,
+            )
+
+        payload: dict = {"ok": True, "result": result}
+        if warning:
+            payload["warning"] = warning
+        return payload
     except Exception as e:
         log.exception("Transcription failed")
         return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ---------- Диаризация (кто говорит) ----------
+
+
+@app.get("/api/asr/diarization")
+async def diarization_status():
+    from .asr import diarize as diarization
+
+    d = get_settings().asr.diarization
+    eng = diarization.get_diarizer(
+        d.embedding_model, d.num_threads, d.window_shift_ratio,
+    )
+    return {
+        # Пакета может не быть: запуск из исходников без установки зависимостей
+        # или старая сборка. UI в этом случае показывает подсказку, а не галочку.
+        "available": diarization.is_available(),
+        "enabled": d.enabled,
+        "num_speakers": d.num_speakers,
+        "threshold": d.threshold,
+        "embedding_model": d.embedding_model,
+        "window_shift_ratio": d.window_shift_ratio,
+        "models": diarization.EMBEDDING_MODELS,
+        "models_ready": eng.models_ready(),
+        "status": eng.get_status(),
+        "install_hint": diarization.INSTALL_HINT,
+    }
+
+
+@app.post("/api/asr/diarization/download")
+async def diarization_download():
+    """Качает модели заранее — по кнопке при включении диаризации, чтобы 34 МБ
+    не выкачивались посреди первой транскрибации."""
+    from .asr import diarize as diarization
+
+    if not diarization.is_available():
+        return JSONResponse({"error": diarization.INSTALL_HINT}, status_code=400)
+
+    d = get_settings().asr.diarization
+    eng = diarization.get_diarizer(
+        d.embedding_model, d.num_threads, d.window_shift_ratio,
+    )
+    if eng.models_ready():
+        return {"ok": True, "status": "ready"}
+
+    # Повторный клик после неудачи (не было сети) должен реально пробовать
+    # снова: initialize() с уже выставленной ошибкой молча выходит.
+    eng.reset_error()
+
+    def _bg():
+        try:
+            eng.initialize()
+        except Exception:
+            log.exception("Ошибка загрузки моделей диаризации")
+
+    threading.Thread(target=_bg, daemon=True).start()
+    return {"ok": True, "status": "downloading"}
 
 
 # ---------- LLM ----------
@@ -289,6 +401,12 @@ async def settings_put(request: Request):
     try:
         new_settings = Settings.model_validate(body)
         save_settings(new_settings)
+        if not new_settings.asr.diarization.enabled:
+            # Выключили диаризацию — освобождаем её ONNX-сессии, а не ждём
+            # перезапуска приложения.
+            from .asr import diarize as diarization
+
+            diarization.unload()
         return {"ok": True, "settings": new_settings.model_dump()}
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=400)

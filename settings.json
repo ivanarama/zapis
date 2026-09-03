@@ -14,6 +14,14 @@
     "whisper": {
       "model": "small",
       "cpu_threads": 0
+    },
+    "diarization": {
+      "enabled": false,
+      "num_speakers": 0,
+      "threshold": 0.5,
+      "embedding_model": "wespeaker_en_voxceleb_resnet34_LM.onnx",
+      "num_threads": 0,
+      "window_shift_ratio": 0.3
     }
   },
   "llm": {

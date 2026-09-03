@@ -19,6 +19,9 @@ HUGGINGFACE_HOST = "huggingface.co"
 # _URL_DIR). Доступность HF про этот хост ничего не говорит — поэтому в тексте
 # ошибки его надо называть явно.
 GIGAAM_CDN_HOST = "cdn.chatwm.opensmodel.sberdevices.ru"
+# Модели диаризации лежат в релизах sherpa-onnx на GitHub — третий независимый
+# хост: HuggingFace и CDN Сбера могут открываться, а он быть закрыт.
+GITHUB_HOST = "github.com"
 
 
 def _exception_chain(exc: BaseException) -> Iterator[BaseException]:

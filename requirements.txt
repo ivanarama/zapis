@@ -35,6 +35,14 @@ truststore==0.10.4
 # ASR — faster-whisper для не-русских языков
 faster-whisper==1.2.1
 
+# Диаризация («кто говорит») — sherpa-onnx. Модели те же, что у
+# pyannote/speaker-diarization-3.1 (segmentation-3.0 + WeSpeaker ResNet34-LM),
+# но в ONNX и с GitHub Releases: оригиналы на HF закрыты гейтом и на машине
+# пользователя не скачались бы. torch не нужен — внутри своя копия
+# onnxruntime, поэтому ставится одним колесом плюс sherpa-onnx-core (~19 МБ).
+# Веса (~34 МБ) качаются при первом включении, в бинарь не пакуются.
+sherpa-onnx==1.13.7
+
 # LLM — OpenAI-совместимый клиент с асинхронным стримингом
 openai==2.36.0
 # anthropic — опционально, нужен только при выборе провайдера "anthropic" в профиле
