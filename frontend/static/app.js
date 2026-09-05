@@ -26,6 +26,7 @@
         library: [],        // лёгкий список сохранённых расшифровок
         diarization: null,  // ответ /api/asr/diarization (доступность, модели)
         warning: null,      // мягкая ошибка последнего прогона (диаризация)
+        busy: false,        // идёт транскрипция — кнопка не активируется
     };
 
     document.addEventListener('DOMContentLoaded', init);
@@ -281,7 +282,10 @@
 
     function updateTranscribeBtn() {
         const btn = $('#btn-transcribe');
-        btn.disabled = !state.file || !state.statusReady;
+        // busy важнее готовности: смену языка/файла и тик статуса вызывают
+        // этот пересчёт и без флага ре-активировали бы кнопку посреди
+        // транскрипции — сервер честно ответил бы 409 на повторный клик.
+        btn.disabled = state.busy || !state.file || !state.statusReady;
     }
 
     // ----- Диаризация (кто говорит) -----
@@ -348,11 +352,11 @@
     }
 
     async function transcribe() {
-        if (!state.file) return;
+        if (!state.file || state.busy) return;
         const progress = $('#progress');
-        const btn = $('#btn-transcribe');
+        state.busy = true;
         progress.hidden = false;
-        btn.disabled = true;
+        updateTranscribeBtn();
 
         const fd = new FormData();
         fd.append('file', state.file);
@@ -395,8 +399,9 @@
         } catch (e) {
             alert('Ошибка: ' + e.message);
         } finally {
+            state.busy = false;
             progress.hidden = true;
-            btn.disabled = false;
+            updateTranscribeBtn();
         }
     }
 
@@ -413,15 +418,34 @@
             return;
         }
         root.innerHTML = notice + segments
-            .map((s) => {
-                // Подпись показываем только на смене говорящего: сегменты уже
-                // разрезаны по репликам, и подпись у каждого дробит чтение.
-                const speaker = s.speaker;
-                const badge = speaker == null
-                    ? ''
-                    : `<span class="segment__speaker" data-speaker="${speaker % 8}">Спикер ${speaker + 1}</span>`;
+            .map((s, i) => {
+                // Подпись показываем только на смене говорящего: сегменты
+                // режутся и по паузам внутри реплики одного человека, и подпись
+                // у каждого такого куска дробит чтение. Сам спикер лежит в
+                // data-speaker сегмента — копирование по клику не теряет
+                // атрибуцию у продолжений без бейджа.
+                // Числовые поля (speaker, start) нормализуем: транскрипт может
+                // прийти из сохранённых файлов, и сырая строка в innerHTML-
+                // атрибуте — готовая инъекция. Спикер — только целое >= 0
+                // (иначе «Спикер 0» у -1 и «Спикер 3.5» у дробных).
+                const num = (v) => {
+                    const n = Number(v);
+                    return Number.isFinite(n) ? n : null;
+                };
+                const intSpeaker = (v) => {
+                    const n = num(v);
+                    return n != null && Number.isInteger(n) && n >= 0 ? n : null;
+                };
+                const start = num(s.start);
+                const speaker = intSpeaker(s.speaker);
+                const prevSpeaker = i > 0 ? intSpeaker(segments[i - 1].speaker) : undefined;
+                const speakerChanged = speaker != null && speaker !== prevSpeaker;
+                const badge = speakerChanged
+                    ? `<span class="segment__speaker" data-speaker="${speaker % 8}">Спикер ${speaker + 1}</span>`
+                    : '';
+                const speakerAttr = speaker == null ? '' : ` data-speaker="${speaker}"`;
                 return `
-            <div class="segment" data-start="${s.start}">
+            <div class="segment" data-start="${start == null ? 0 : start}"${speakerAttr}>
                 <div class="segment__time">${formatTime(s.start)}</div>
                 <div class="segment__body">${badge}<div class="segment__text">${escapeHtml(s.text || '')}</div></div>
             </div>`;
@@ -432,9 +456,11 @@
             el.addEventListener('click', () => {
                 const parent = el.parentElement;
                 const t = el.textContent;
-                const speaker = parent.querySelector('.segment__speaker');
+                const speaker = parent.dataset.speaker;
                 const txt = parent.querySelector('.segment__text').textContent;
-                const body = speaker ? `${speaker.textContent}: ${txt}` : txt;
+                const body = speaker !== undefined
+                    ? `Спикер ${Number(speaker) + 1}: ${txt}`
+                    : txt;
                 navigator.clipboard.writeText(`${t} — ${body}`).catch(() => {});
                 el.style.color = 'var(--ok)';
                 setTimeout(() => (el.style.color = ''), 800);

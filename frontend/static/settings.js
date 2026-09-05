@@ -96,8 +96,17 @@
     function updateDiarizationState() {
         const label = $('#diarization-models-state');
         const btn = $('#btn-download-diarization');
-        if (!diarizationInfo || !diarizationInfo.available) {
-            label.textContent = (diarizationInfo && diarizationInfo.install_hint) || '';
+        // Чекбокс намеренно не трогаем: бэкенд терпит enabled=true и без
+        // пакета (молчаливый skip + запись в лог), так что предпочтение
+        // пользователя не стирается и не замораживается.
+        if (!diarizationInfo) {
+            // Разовый сбой запроса статуса — не знаем ничего о моделях.
+            label.textContent = '';
+            btn.disabled = true;
+            return;
+        }
+        if (!diarizationInfo.available) {
+            label.textContent = diarizationInfo.install_hint || '';
             btn.disabled = true;
             return;
         }
@@ -130,7 +139,9 @@
     async function downloadDiarizationModels() {
         // Настройки сохраняем до скачивания: качать надо ту модель, которую
         // пользователь только что выбрал в списке, а не сохранённую ранее.
-        await saveAll({ keepOpen: true });
+        // Не сохранилось (валидация схемы, сеть) — не качаем вовсе: POST
+        // скачал бы модель из прежних настроек.
+        if (!(await saveAll({ keepOpen: true }))) return;
         const res = await fetch('/api/asr/diarization/download', { method: 'POST' });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
@@ -353,7 +364,7 @@
             if (!res.ok) {
                 const data = await res.json().catch(() => ({}));
                 alert('Ошибка сохранения: ' + (data.error || res.statusText));
-                return;
+                return false;
             }
             currentSettings = newSettings;
             // Применить тему сразу
@@ -367,11 +378,13 @@
             if (window.refreshDiarization) {
                 await window.refreshDiarization();
             }
-            if (keepOpen) return;
+            if (keepOpen) return true;
             close();
+            return true;
         } catch (e) {
             alert('Ошибка: ' + e.message);
         }
+        return false;
     }
 
     function setupModalTabs() {

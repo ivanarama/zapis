@@ -61,19 +61,41 @@ app = FastAPI(title="Zapis", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR / "static")), name="static")
 
 
-def _apply_asr_device(settings: Settings) -> bool:
+# Одна ASR-транскрипция (с диаризацией) за раз — см. /api/transcribe.
+_transcribe_lock = threading.Lock()
+# Диаризация выключена молча (пакета нет, явного запроса не было) — причину
+# пишем в лог один раз за запуск, а не на каждую транскрипцию.
+_diarization_unavailable_logged = False
+# Смена устройства, пришедшаяся на живую транскрипцию: храним ВАЛИДИРОВАННЫЙ
+# объект настроек, а не перечитываем settings.json — файл в момент применения
+# мог быть битым (внешний редактор), и get_settings молча подсунул бы дефолты.
+_pending_device_settings: Optional[Settings] = None
+
+
+def _apply_asr_device(settings: Settings) -> Optional[bool]:
     """Прокидывает устройство из настроек в фабрику движков.
 
     Фабрика сама решает, менялось ли оно: при том же устройстве созданные
     движки (а с ними и прогретые модели) не сбрасываются.
+
+    Возвращает True — устройство поменялось, False — не менялось,
+    None — идёт транскрипция, движки заняты; применение ложится на
+    вызывающую сторону (settings_put кладёт в _pending_device_settings,
+    а finally в api_transcribe применяет после завершения).
     """
-    changed = asr_factory.set_device(
-        settings.asr.device,
-        {
-            "gigaam": settings.asr.gigaam.device,
-            "whisper": settings.asr.whisper.device,
-        },
-    )
+    if not _transcribe_lock.acquire(blocking=False):
+        log.info("Идёт транскрипция — устройство ASR применится после её завершения")
+        return None
+    try:
+        changed = asr_factory.set_device(
+            settings.asr.device,
+            {
+                "gigaam": settings.asr.gigaam.device,
+                "whisper": settings.asr.whisper.device,
+            },
+        )
+    finally:
+        _transcribe_lock.release()
     if changed:
         log.info(
             "Устройство ASR: общее=%s, gigaam=%s, whisper=%s — движки пересоздадутся",
@@ -211,6 +233,14 @@ async def api_transcribe(
     diarize: Optional[bool] = None,
     speakers: Optional[int] = None,
 ):
+    # Одна транскрипция за раз: параллельный запрос (второе окно, API-клиент)
+    # после смены устройства получил бы новый движок и загрузил модель второй
+    # раз — две модели в памяти одновременно. UI и так блокирует свою кнопку.
+    if not _transcribe_lock.acquire(blocking=False):
+        return JSONResponse(
+            {"error": "Транскрипция уже идёт — дождитесь её завершения"},
+            status_code=409,
+        )
     try:
         data = await file.read()
         if not data:
@@ -233,9 +263,34 @@ async def api_transcribe(
         result = await asyncio.to_thread(eng.transcribe, data, file.filename, lang)
 
         warning: Optional[str] = None
-        want_diarization = (
-            settings.asr.diarization.enabled if diarize is None else bool(diarize)
-        )
+        if diarize is not None:
+            want_diarization = bool(diarize)
+            explicit_diarization = True
+        elif speakers is not None:
+            # speakers=N без diarize — тоже явный запрос подписей (API-клиент;
+            # фронт так не шлёт). Молчать здесь нельзя — просили же.
+            want_diarization = True
+            explicit_diarization = True
+        else:
+            want_diarization = settings.asr.diarization.enabled
+            explicit_diarization = False
+        if want_diarization:
+            from .asr import diarize as diarization_module
+            # Пакета нет, а явного запроса не было (UI галочку не показывал
+            # и параметр не слал) — пропускаем молча, не предупреждением на
+            # каждой транскрипции. Причину пишем в лог один раз за запуск:
+            # «пакет выпал из сборки» иначе неотличимо от «диаризация прошла».
+            if not explicit_diarization and not diarization_module.is_available():
+                global _diarization_unavailable_logged
+                if not _diarization_unavailable_logged:
+                    _diarization_unavailable_logged = True
+                    log.warning(
+                        "Диаризация включена в настройках, но пакет sherpa-onnx "
+                        "недоступен — расшифровка идёт без подписей говорящих. "
+                        "%s",
+                        diarization_module.INSTALL_HINT,
+                    )
+                want_diarization = False
         if want_diarization:
             result, warning = await asyncio.to_thread(
                 _diarize_result, result, data, file.filename, speakers,
@@ -248,6 +303,20 @@ async def api_transcribe(
     except Exception as e:
         log.exception("Transcription failed")
         return JSONResponse({"error": str(e)}, status_code=500)
+    finally:
+        _transcribe_lock.release()
+        # Устройство могли сменить в настройках, пока шла транскрипция: тогда
+        # settings_put отложил применение (движки были заняты). Применяем
+        # сохранённый объект — без перечитывания settings.json (см. причину
+        # у объявления _pending_device_settings).
+        global _pending_device_settings
+        pending = _pending_device_settings
+        _pending_device_settings = None
+        if pending is not None:
+            try:
+                _apply_asr_device(pending)
+            except Exception:
+                log.exception("Не удалось применить устройство ASR после транскрипции")
 
 
 # ---------- Диаризация (кто говорит) ----------
@@ -431,8 +500,12 @@ async def settings_put(request: Request):
         # Устройство применяем сразу: раньше смена CPU/GPU требовала
         # перезапуска приложения, хотя размер модели Whisper подхватывался на
         # лету. Прогретую модель это не роняет — движки пересоздаются только
-        # при реальном изменении устройства.
-        _apply_asr_device(new_settings)
+        # при реальном изменении устройства. Идёт транскрипция — применение
+        # отложим: движки заняты, применим валидированный объект после
+        # завершения (finally в api_transcribe).
+        global _pending_device_settings
+        if _apply_asr_device(new_settings) is None:
+            _pending_device_settings = new_settings
         return {"ok": True, "settings": new_settings.model_dump()}
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=400)
