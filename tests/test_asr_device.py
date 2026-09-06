@@ -117,6 +117,166 @@ def test_set_device_frees_models_of_cached_engines():
     assert freed, "set_device обязан звать unload у кешированных движков"
 
 
+# ---------- Откаты cuda→cpu внутри движков ----------
+#
+# GigaAM считает на torch (в сборке без CUDA падает уже после скачивания
+# весов — откат заранее), Whisper на CTranslate2 (отката нет — ошибка с
+# подсказкой). Оба пути гоняются по настоящему initialize(), наружу
+# подменяются только torch-совместимый стаб и модуль движка.
+
+
+class _FakeDevice:
+    """Минимальная замена torch.device: атрибут .type и человекочитаемый str."""
+
+    def __init__(self, spec):
+        self.type = spec
+
+    def __str__(self):
+        return self.type
+
+
+def _fake_torch(cuda_available):
+    import types
+
+    return types.SimpleNamespace(
+        device=_FakeDevice,
+        cuda=types.SimpleNamespace(
+            is_available=lambda: cuda_available,
+            empty_cache=lambda: None,
+        ),
+    )
+
+
+def _with_patched_modules(patches, fn):
+    """Ставит пары имя→модуль в sys.modules, зовёт fn, возвращает как было."""
+    import sys
+
+    saved = {name: sys.modules.get(name) for name in patches}
+    sys.modules.update(patches)
+    try:
+        return fn()
+    finally:
+        for name, mod in saved.items():
+            if mod is None:
+                sys.modules.pop(name, None)
+            else:
+                sys.modules[name] = mod
+
+
+def test_gigaam_requested_cuda_falls_back_to_cpu_without_error():
+    """GigaAM просил cuda, а torch без CUDA: тихий откат на CPU — модель
+    создаётся, ошибки в статусе нет. Падение «Torch not compiled with CUDA»
+    после скачивания весов недопустимо, молчаливое падение движка — тем более."""
+    import sys
+    import types
+
+    created = {}
+
+    class _FakeModel:
+        def __init__(self, version, device="cpu", fp16=False):
+            created["device"] = device
+
+    fake_hub = types.ModuleType("huggingface_hub")
+    fake_hub.hf_hub_download = lambda *a, **k: "kenlm.bin"
+
+    def _run():
+        from backend.asr import gigaam_engine as ge
+
+        saved_attrs = (
+            ge.torch, ge.GigaAMCTC, ge.LongformCTC, ge.CTCDecoderWithLM,
+            ge._check_v3_available,
+        )
+        ge.torch = sys.modules["torch"]
+        ge.GigaAMCTC = _FakeModel
+        ge.LongformCTC = lambda model, segment_shift=0: None
+        ge.CTCDecoderWithLM = lambda longform, kenlm_path: None
+        ge._check_v3_available = lambda version: True
+        try:
+            eng = ge.GigaamEngine(version="v3", device="cuda")
+            eng.initialize()
+            st = eng.get_status()
+            assert st["status"] == "ready", st
+            assert created["device"] == "cpu", "модель обязана уехать на CPU"
+            assert eng._error is None, "тихий откат — не ошибка"
+        finally:
+            (ge.torch, ge.GigaAMCTC, ge.LongformCTC,
+             ge.CTCDecoderWithLM, ge._check_v3_available) = saved_attrs
+            # Модуль мог импортироваться со стабом torch — не оставлять его в кеше
+            sys.modules.pop("backend.asr.gigaam_engine", None)
+
+    _with_patched_modules(
+        {"torch": _fake_torch(False), "huggingface_hub": fake_hub}, _run,
+    )
+
+
+def test_gigaam_requested_cuda_used_when_available():
+    """А если CUDA есть — откатывать нельзя: модель остаётся на видеокарте."""
+    import sys
+    import types
+
+    created = {}
+
+    class _FakeModel:
+        def __init__(self, version, device="cpu", fp16=False):
+            created["device"] = device
+
+    fake_hub = types.ModuleType("huggingface_hub")
+    fake_hub.hf_hub_download = lambda *a, **k: "kenlm.bin"
+
+    def _run():
+        from backend.asr import gigaam_engine as ge
+
+        saved_attrs = (
+            ge.torch, ge.GigaAMCTC, ge.LongformCTC, ge.CTCDecoderWithLM,
+            ge._check_v3_available,
+        )
+        ge.torch = sys.modules["torch"]
+        ge.GigaAMCTC = _FakeModel
+        ge.LongformCTC = lambda model, segment_shift=0: None
+        ge.CTCDecoderWithLM = lambda longform, kenlm_path: None
+        ge._check_v3_available = lambda version: True
+        try:
+            eng = ge.GigaamEngine(version="v3", device="cuda")
+            eng.initialize()
+            assert eng.get_status()["status"] == "ready"
+            assert created["device"] == "cuda", created
+        finally:
+            (ge.torch, ge.GigaAMCTC, ge.LongformCTC,
+             ge.CTCDecoderWithLM, ge._check_v3_available) = saved_attrs
+            sys.modules.pop("backend.asr.gigaam_engine", None)
+
+    _with_patched_modules(
+        {"torch": _fake_torch(True), "huggingface_hub": fake_hub}, _run,
+    )
+
+
+def test_whisper_requested_cuda_failure_sets_actionable_error():
+    """У Whisper отката нет: видеокарту попросили, а она не завелась — статус
+    error с подсказкой про cuDNN и способом вернуться на CPU, а не голый
+    «DLL load failed»."""
+    import sys
+    import types
+
+    from backend.asr import whisper_engine as we
+
+    class _BrokenWhisperModel:
+        def __init__(self, *a, **k):
+            raise RuntimeError("DLL load failed while importing")
+
+    fake_fw = types.ModuleType("faster_whisper")
+    fake_fw.WhisperModel = _BrokenWhisperModel
+
+    def _run():
+        eng = we.WhisperEngine(model_size="tiny", device="cuda")
+        eng.initialize()
+        st = eng.get_status()
+        assert st["status"] == "error", st
+        assert "cuDNN" in st["error"], st["error"]
+        assert 'device = "cpu"' in st["error"], st["error"]
+
+    _with_patched_modules({"faster_whisper": fake_fw}, _run)
+
+
 def _run():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0

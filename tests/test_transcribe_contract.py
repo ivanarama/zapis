@@ -272,6 +272,80 @@ def test_explicit_diarize_with_unavailable_package_gets_honest_warning():
         d.is_available = saved_avail
 
 
+def test_device_change_during_transcription_lands_on_next_transcribe():
+    """Сценарий «переключение устройства без перезапуска» на уровне main.py:
+    settings_put во время живой транскрипции откладывает применение (движки
+    заняты), finally транскрипции применяет его, и следующий /api/transcribe
+    уже разрешается на новом устройстве."""
+    import backend.main as m
+    from backend.asr import factory
+    from fastapi.testclient import TestClient
+
+    factory.set_device("cpu", {})  # герметичная точка старта
+
+    saved_settings = m.get_settings
+    saved_save = m.save_settings
+    saved_get_engine = m.asr_factory.get_engine
+
+    started, release = threading.Event(), threading.Event()
+    seen_devices = []
+
+    class _RecordingEngine:
+        name = "fake"
+
+        def transcribe(self, data, filename, language="auto"):
+            # Устройство фиксируется в движке при создании — читаем то,
+            # что фабрика разрешила бы новому движку прямо сейчас.
+            seen_devices.append(factory._resolve_device("gigaam"))
+            started.set()
+            release.wait(5)
+            return {"text": "ok", "language": language, "segments": []}
+
+    m.get_settings = lambda: _settings(False)
+    m.save_settings = lambda s: None  # settings.json теста не касается
+    m.asr_factory.get_engine = lambda name=None: _RecordingEngine()
+    try:
+        first_code = {}
+
+        def first():
+            r = TestClient(m.app).post(
+                "/api/transcribe", files={"file": ("a.wav", b"x")}
+            )
+            first_code["status"] = r.status_code
+
+        t = threading.Thread(target=first, daemon=True)
+        t.start()
+        assert started.wait(10), "первая транскрипция не стартовала"
+
+        # Смена устройства в настройках, пока первая транскрипция жива:
+        # применить нельзя — откладывается, фабрика остаётся на cpu.
+        r = TestClient(m.app).put("/api/settings", json={"asr": {"device": "cuda"}})
+        assert r.status_code == 200
+        assert m._pending_device_settings is not None, "ожидали отложенное применение"
+        assert factory._device == "cpu", "устройство применилось посреди транскрипции"
+
+        release.set()
+        t.join(10)
+        assert first_code["status"] == 200
+
+        # finally транскрипции применил отложенные настройки...
+        assert factory._device == "cuda"
+        assert m._pending_device_settings is None
+        # ...и следующая транскрипция идёт уже на новом устройстве.
+        r = TestClient(m.app).post(
+            "/api/transcribe", files={"file": ("b.wav", b"x")}
+        )
+        assert r.status_code == 200
+        assert seen_devices == ["cpu", "cuda"], seen_devices
+    finally:
+        m.get_settings = saved_settings
+        m.save_settings = saved_save
+        m.asr_factory.get_engine = saved_get_engine
+        m._pending_device_settings = None
+        release.set()
+        factory.set_device("auto", {})
+
+
 def _run_all():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0
