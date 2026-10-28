@@ -35,8 +35,8 @@
 Если нужен только терминал, из корня проекта:
 
 ```bash
-python -m backend.marketing --example edo-short --command storyboard
-python -m backend.marketing --example edo-short --command render --engine piper --speaker ru_RU-irina-medium --preset recording
+python -m backend.cli video storyboard --example edo-short
+python -m backend.cli video render --example edo-short --engine piper --speaker ru_RU-irina-medium --preset recording
 ```
 
 Скриншоты собственного проекта можно положить в video/public/assets, затем указать относительный путь в image. Через интерфейс файлы загружаются кнопкой «Скриншот» у сцены. Для произношения специальных терминов поправьте narration и снова прослушайте пробу. Готовую запись диктора можно прикрепить как WAV к отдельной сцене.

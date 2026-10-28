@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import threading
+import tempfile
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
@@ -61,7 +62,7 @@ class VideoService:
         node = shutil.which("node")
         installed = (self.renderer / "node_modules/@remotion/renderer/package.json").is_file()
         available = bool(node and installed and (self.renderer / "scripts/backend.mjs").is_file())
-        return {"available": available, "busy": self._busy.locked(), "node": bool(node), "renderer": installed,
+        return {"available": available, "busy": self._busy.locked(), "node": bool(node), "renderer": installed, "apiVersion": 1,
                 "project": hashlib.sha256(str(self.renderer.resolve()).encode()).hexdigest()[:16],
                 "help": "Установите Node.js 22+ и выполните npm ci в папке video." if not available else ""}
 
@@ -140,7 +141,7 @@ class VideoService:
         if code:
             raise ValueError("\n".join(lines[-6:]) or f"Ошибка сборки, код {code}.")
 
-    def _snapshot(self, campaign: dict, directory: Path) -> dict:
+    def _snapshot(self, campaign: dict, directory: Path, assets_dir: Path | None = None) -> dict:
         campaign = copy.deepcopy(campaign)
         scenes = campaign.get("scenes")
         if not isinstance(scenes, list) or not 1 <= len(scenes) <= 12:
@@ -159,12 +160,27 @@ class VideoService:
                     raise ValueError("Готовая озвучка должна быть WAV.")
                 assets.add(scene["audio"])
         for name in assets:
-            source = self._asset(name)
+            source = (contained(assets_dir, name) if assets_dir is not None and name != "assets/fonts/NotoSans.ttf"
+                      else self._asset(name))
             target = contained(directory / "public", name)
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(source, target)
         write_json(directory / "campaign.json", campaign)
         return campaign
+
+    def validate(self, campaign: dict, assets_dir: Path | None = None) -> dict:
+        """Run the renderer's actual validator without TTS or a render job."""
+        self.storage.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix="validate-", dir=self.storage) as temporary:
+            directory = Path(temporary)
+            snapshot = self._snapshot(campaign, directory, assets_dir)
+            self._run_node({"command": "validate", "campaign": str(directory / "campaign.json"),
+                            "publicDir": str(directory / "public"), "workDir": str(directory / "work")}, directory)
+            files = sorted({scene[key] for scene in snapshot["scenes"] for key in ("image", "audio") if scene.get(key)})
+            return {"valid": True, "product": snapshot["product"], "scenes": len(snapshot["scenes"]),
+                    "minimumSeconds": sum(scene["seconds"] for scene in snapshot["scenes"]),
+                    "assets": [{"path": name, "sha256": hashlib.sha256(contained(directory / "public", name).read_bytes()).hexdigest()}
+                               for name in files]}
 
     def start(self, request: VideoRequest) -> dict:
         if not self.status()["available"]:

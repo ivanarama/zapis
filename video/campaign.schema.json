@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Zapis marketing video campaign",
+  "type": "object",
+  "required": ["schemaVersion", "id", "product", "brand", "scenes"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "id": {"$ref": "#/$defs/id"},
+    "product": {"type": "string", "minLength": 1, "maxLength": 100},
+    "footer": {"type": "string"},
+    "canvas": {"type": "string", "description": "paper enables the animated grid"},
+    "brand": {
+      "type": "object", "required": ["name", "accent"],
+      "properties": {"name": {"type": "string", "minLength": 1, "maxLength": 50}, "accent": {"type": "string", "pattern": "^#[0-9a-fA-F]{6}$"}}
+    },
+    "voice": {
+      "type": "object", "description": "Legacy presentation options, normalized by Zapis. Select engine and speaker with CLI options.",
+      "required": ["name", "rate", "gainDb"],
+      "properties": {"name": {"type": "string", "minLength": 1, "maxLength": 100}, "rate": {"type": "integer", "minimum": -10, "maximum": 10}, "gainDb": {"type": "number", "minimum": -12, "maximum": 12}}
+    },
+    "scenes": {"type": "array", "minItems": 1, "maxItems": 12, "items": {"$ref": "#/$defs/scene"}}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"},
+    "asset": {"type": "string", "minLength": 1, "description": "Relative path inside --assets or the scenario folder. Use / separators. No URLs, absolute paths, .. or escaping symlinks."},
+    "scene": {
+      "type": "object",
+      "required": ["id", "type", "seconds", "kicker", "title", "body", "narration", "evidence"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "type": {"enum": ["title", "screenshot", "flow", "steps", "compare", "cta"]},
+        "seconds": {"type": "number", "minimum": 2, "maximum": 45},
+        "kicker": {"type": "string", "minLength": 1, "maxLength": 55},
+        "title": {"type": "string", "minLength": 1, "maxLength": 95, "description": "At most three lines, separated with \n."},
+        "body": {"type": "string", "minLength": 1, "maxLength": 180},
+        "narration": {"type": "string", "minLength": 1, "maxLength": 420},
+        "evidence": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "image": {"$ref": "#/$defs/asset"},
+        "audio": {"$ref": "#/$defs/asset", "description": "Optional prerecorded WAV for this scene, replacing TTS."},
+        "imageCaption": {"type": "string", "minLength": 1, "maxLength": 160},
+        "nodes": {"type": "array", "minItems": 2, "maxItems": 4, "items": {"type": "string", "minLength": 1, "maxLength": 50}},
+        "steps": {"type": "array", "minItems": 1, "maxItems": 4, "items": {"type": "string", "minLength": 1, "maxLength": 80}},
+        "cards": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "object", "required": ["label", "value"], "properties": {"label": {"type": "string", "minLength": 1, "maxLength": 40}, "value": {"type": "string", "minLength": 1, "maxLength": 70}}}},
+        "disclosure": {"type": "string", "minLength": 1, "maxLength": 150},
+        "button": {"type": "string", "minLength": 1, "maxLength": 50},
+        "contact": {"type": "string", "minLength": 1, "maxLength": 80},
+        "revealAt": {"type": "array", "minItems": 1, "maxItems": 4, "items": {"type": "number", "minimum": 0}, "description": "One timing per node, step or card. Nondecreasing, each less than seconds."},
+        "metric": {"type": "object", "required": ["value", "label"], "properties": {"value": {"type": "integer", "minimum": 0, "maximum": 9999}, "label": {"type": "string", "minLength": 1, "maxLength": 80}}}
+      },
+      "allOf": [
+        {"if": {"properties": {"type": {"const": "screenshot"}}}, "then": {"required": ["image", "imageCaption"]}},
+        {"if": {"properties": {"type": {"const": "flow"}}}, "then": {"required": ["nodes"]}},
+        {"if": {"properties": {"type": {"const": "steps"}}}, "then": {"required": ["steps"]}},
+        {"if": {"properties": {"type": {"const": "compare"}}}, "then": {"required": ["cards", "disclosure"]}},
+        {"if": {"properties": {"type": {"const": "cta"}}}, "then": {"required": ["button", "contact"]}}
+      ]
+    }
+  },
+  "$comment": "The renderer validator also checks nonblank strings, unique scene IDs, title line count, revealAt lengths/order/bounds, and actual safe files. Always run video validate."
+}

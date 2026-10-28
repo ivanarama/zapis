@@ -1,0 +1,4 @@
+interface:
+  display_name: "Видео через Zapis"
+  short_description: "Сценарий, озвучка и сборка видео через CLI Zapis"
+  default_prompt: "Используй $zapis-video, чтобы сделать ролик из описания проекта и реальных скриншотов."

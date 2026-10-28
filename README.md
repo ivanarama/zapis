@@ -30,13 +30,15 @@ python -m backend.marketing.launch
 Повторение без интерфейса:
 
 ```bash
-python -m backend.marketing --example edo-short --command storyboard
-python -m backend.marketing --example edo-short --command render --engine piper --speaker ru_RU-irina-medium
+python -m backend.cli video storyboard --example edo-short
+python -m backend.cli video render --example edo-short --engine piper --speaker ru_RU-irina-medium
 ```
 
 Сценарии и оригинальные экраны находятся в `video/`, пользовательские файлы и результаты в `video_runs/`. Каждый запуск сохраняет снимок сценария, исходные экраны, WAV, MP4, SRT/VTT, параметры и хеши. Тишина вместо ответа TTS останавливает сборку. Node.js нужен только режиму видео.
 
 Инструкции для записи процесса: [docs/video/recording.md](docs/video/recording.md). Черновик статьи: [docs/video/article.md](docs/video/article.md).
+
+Для агентов и автоматизации доступен JSON CLI: `zapis.cmd video doctor`, `video validate`, `video preview`, `video storyboard`, `video render`, `video status`, `video wait`. Поддерживаются отдельная папка сценария со скриншотами, фоновая сборка и экспорт результатов. Контракт и примеры: [docs/video/cli.md](docs/video/cli.md). Навык: [skills/zapis-video/SKILL.md](skills/zapis-video/SKILL.md).
 
 ## Возможности
 

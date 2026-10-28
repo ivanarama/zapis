@@ -75,6 +75,18 @@ def create_job(body: VideoRequest):
         raise HTTPException(422, str(error)) from error
 
 
+class ValidationRequest(BaseModel):
+    campaign: dict
+
+
+@router.post("/validate")
+def validate(body: ValidationRequest):
+    try:
+        return service.validate(body.campaign)
+    except (ValueError, OSError) as error:
+        raise HTTPException(422, str(error)) from error
+
+
 @router.get("/jobs")
 def history():
     return {"jobs": service.history()}
