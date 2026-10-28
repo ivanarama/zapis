@@ -33,9 +33,9 @@
         $$('.mode-btn').forEach((btn) => {
             btn.addEventListener('click', () => {
                 const mode = btn.dataset.mode;
+                document.body.dataset.mode = mode;
                 $$('.mode-btn').forEach((b) => b.classList.toggle('mode-btn--active', b === btn));
-                $('#view-transcribe').hidden = mode !== 'transcribe';
-                $('#view-audiobook').hidden = mode !== 'audiobook';
+                $$('main[id^="view-"]').forEach(view => { view.hidden = view.id !== `view-${mode}`; });
             });
         });
     }

@@ -369,7 +369,12 @@ def _check_v3_available(version: str) -> bool:
     """
     if version != "v3":
         return True
-    import gigaam
+    try:
+        import gigaam
+    except ModuleNotFoundError as error:
+        if error.name != "gigaam":
+            raise
+        return False
     model_name = f"{version}_ctc"
     names = getattr(gigaam, "_MODEL_HASHES", None)
     if names is None:

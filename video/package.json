@@ -1,0 +1,22 @@
+{
+  "name": "zapis-video-renderer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Animated screenshot videos with narration supplied by Zapis",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "studio": "remotion studio src/index.jsx --port 3017"
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.537",
+    "@remotion/cli": "4.0.537",
+    "@remotion/renderer": "4.0.537",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "remotion": "4.0.537"
+  }
+}

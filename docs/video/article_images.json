@@ -1,0 +1,32 @@
+[
+  {
+    "source": "images/editor.png",
+    "alt": "Вкладка «Видео» в Zapis: сценарий и выбор голоса",
+    "caption": "Рисунок 1. Вкладка «Видео» в Zapis: сценарий и выбор голоса",
+    "sha256": "93392398ae2a74243a955699d80e3ae3625a9b50a49d6427fa01388d3038d434",
+    "pixelWidth": 2200,
+    "pixelHeight": 2000,
+    "cssWidth": 1100,
+    "cssHeight": 1000
+  },
+  {
+    "source": "images/flow.png",
+    "alt": "Кадр схемы из собранного ролика",
+    "caption": "Рисунок 2. Кадр схемы из собранного ролика",
+    "sha256": "f398e7bf239665fde5bb6275e35554128e86af9a2b8050e31beda68c871e483a",
+    "pixelWidth": 1280,
+    "pixelHeight": 720,
+    "cssWidth": 640,
+    "cssHeight": 360
+  },
+  {
+    "source": "images/result.png",
+    "alt": "Результат сборки и история запусков в Zapis",
+    "caption": "Рисунок 3. Результат сборки и история запусков в Zapis",
+    "sha256": "088b6b621dd86038068f6d56d368be778c82e02cb5dc4ced96cceeb515f74d44",
+    "pixelWidth": 2024,
+    "pixelHeight": 1616,
+    "cssWidth": 1012,
+    "cssHeight": 808
+  }
+]

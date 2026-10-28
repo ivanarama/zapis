@@ -41,6 +41,7 @@ from .tts.engine_piper import PIPER_RU_VOICES
 from .tts.factory import get_engine as get_tts_engine
 from .tts.normalize import normalize_text as tts_normalize_text
 from .tts.reader import decode_book
+from .marketing.routes import router as video_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -58,7 +59,9 @@ def _base_dir() -> Path:
 FRONTEND_DIR = _base_dir() / "frontend"
 
 app = FastAPI(title="Zapis", docs_url=None, redoc_url=None)
+app.include_router(video_router)
 app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR / "static")), name="static")
+app.mount("/video-guide", StaticFiles(directory=str(_base_dir() / "docs/video"), check_dir=False), name="video-guide")
 
 
 # Одна ASR-транскрипция (с диаризацией) за раз — см. /api/transcribe.

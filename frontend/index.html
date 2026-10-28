@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
     <link rel="stylesheet" href="/static/style.css">
     <link rel="stylesheet" href="/static/tts.css">
+    <link rel="stylesheet" href="/static/video.css">
 </head>
 <body data-theme="dark">
     <header class="app-header">
@@ -23,6 +24,7 @@
         <nav class="mode-switch" role="tablist">
             <button class="mode-btn mode-btn--active" data-mode="transcribe">Транскрипция</button>
             <button class="mode-btn" data-mode="audiobook">Озвучка</button>
+            <button class="mode-btn" data-mode="video">Видео</button>
         </nav>
         <div class="header-actions">
             <span id="asr-status" class="status status--loading">
@@ -289,6 +291,56 @@
                 </div>
             </div>
         </section>
+    </main>
+
+    <main id="view-video" class="video-workspace" hidden>
+        <div class="video-heading">
+            <div><p class="video-eyebrow">СТУДИЯ РОЛИКОВ</p><h1>Покажите, какую задачу решает продукт</h1><p>Сценарий, реальные экраны, голос и анимация в одном проекте.</p></div>
+            <div><span id="video-health" role="status">Проверяем инструменты…</span><p><a class="video-guide-link" href="/video-guide/recording.html" target="_blank" rel="noopener">Как повторить сборку под запись</a></p></div>
+        </div>
+        <div class="video-columns">
+            <section class="video-editor">
+                <div class="video-card">
+                    <h2>1. Сценарий и экраны</h2>
+                    <div class="video-row">
+                        <label class="field">Готовый пример<select id="video-example"><option value="edo-short">ЭДО · короткий ролик</option><option value="edo">ЭДО · подробный ролик</option><option value="motion">Анимация конвейера</option></select></label>
+                        <button id="video-load-example" class="btn btn--ghost">Загрузить</button>
+                    </div>
+                    <label class="field">Название проекта<input id="video-product" maxlength="100"></label>
+                    <div id="video-scenes" class="video-scenes"></div>
+                    <details class="video-json"><summary>Сценарий JSON: схемы, шаги, цвета и появление элементов</summary>
+                        <textarea id="video-json" rows="14" spellcheck="false" aria-label="Сценарий JSON"></textarea>
+                        <div class="video-row"><button id="video-apply-json" class="btn btn--ghost">Применить JSON</button><button id="video-download-json" class="btn btn--ghost">Сохранить JSON</button><label class="btn btn--ghost">Открыть JSON<input type="file" id="video-import-json" accept=".json" hidden></label></div>
+                        <p class="hint">Типы сцен: title, screenshot, flow, steps, compare, cta. В revealAt задаются секунды появления элементов. Скриншоты загружаются в карточке сцены.</p>
+                    </details>
+                </div>
+            </section>
+            <aside class="video-controls">
+                <section class="video-card">
+                    <h2>2. Сначала послушайте голос</h2>
+                    <label class="field">Движок Zapis<select id="video-engine"><option value="silero">Silero · офлайн</option><option value="piper">Piper · офлайн</option><option value="edge">Edge · онлайн</option><option value="yandex">Яндекс SpeechKit</option><option value="sber">Сбер SaluteSpeech</option></select></label>
+                    <label class="field">Голос<select id="video-speaker"></select></label>
+                    <p class="hint" id="video-voice-hint"></p>
+                    <label class="field">Текст пробы<textarea id="video-preview-text" rows="3" maxlength="420">Типовой обмен не даёт нужных фильтров? Проверьте документы в предпросмотре и перенесите только нужные данные.</textarea></label>
+                    <label class="field field--check"><input type="checkbox" id="video-normalize" checked><span>Разворачивать числа и сокращения</span></label>
+                    <label class="field field--check"><input type="checkbox" id="video-accent"><span>Ударения ruaccent для Silero</span></label>
+                    <label class="field" id="video-speed-field" hidden>Длительность речи Piper: <span id="video-speed-label">1.00</span><input type="range" id="video-speed" min="0.7" max="1.4" step="0.05" value="1"></label>
+                    <button id="video-preview" class="btn btn--ghost btn--block">Прослушать пробу</button>
+                    <div id="video-voice-samples"></div>
+                </section>
+                <section class="video-card">
+                    <h2>3. Соберите ролик</h2>
+                    <label class="field">Формат<select id="video-format"><option value="landscape">16:9 · горизонтальный</option><option value="portrait">9:16 · вертикальный</option><option value="all">Оба формата</option></select></label>
+                    <label class="field">Качество<select id="video-preset"><option value="recording">Быстрая проба · 360p, 12 кадров/с</option><option value="draft">Просмотр · 720p, 24 кадра/с</option><option value="full">Готовый ролик · 1080p, 24 кадра/с</option></select></label>
+                    <div class="video-row"><button id="video-storyboard" class="btn btn--ghost">Раскадровка</button><button id="video-render" class="btn btn--primary">Собрать с голосом</button></div>
+                    <p class="hint">Раскадровка помогает проверить текст и экраны без озвучки. Длительность сцен в ролике подстраивается под речь.</p>
+                    <p id="video-progress" role="status" aria-live="polite"></p>
+                    <p id="video-error" role="alert" hidden></p>
+                </section>
+            </aside>
+        </div>
+        <section class="video-card" id="video-result" hidden><h2>Результат</h2><div id="video-outputs"></div></section>
+        <section class="video-card"><h2>История сборок</h2><div id="video-history"><p class="hint">Здесь появятся раскадровки и ролики.</p></div></section>
     </main>
 
     <!-- Settings modal -->
@@ -606,5 +658,6 @@
     <script src="/static/settings.js"></script>
     <script src="/static/app.js"></script>
     <script src="/static/tts.js"></script>
+    <script src="/static/video.js"></script>
 </body>
 </html>

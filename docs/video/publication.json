@@ -1,0 +1,10 @@
+{
+  "title": "Маркетинговые ролики в Zapis: реальные экраны, анимация и выбор голоса",
+  "summary": "Добавляю в Zapis конвейер маркетинговых видео: JSON-сценарий, реальные скриншоты, анимация Remotion, пробы голосов, MP4 двух форматов и субтитры. Показываю повторение сборки на коротком примере ЭДО.",
+  "keywords": ["Zapis", "Remotion", "маркетинговое видео", "TTS", "Claude Design", "1С", "анимация"],
+  "status": "draft",
+  "repository": "https://github.com/ivanarama/zapis",
+  "source_video": "https://www.youtube.com/watch?v=oWbUL_TZm_4",
+  "images": ["images/editor.png", "images/flow.png", "images/result.png"],
+  "note": "Черновик для проверки автором. Локальные изображения нужно загрузить в редактор и заменить ссылки на upload-URL. Публикация не выполнялась."
+}

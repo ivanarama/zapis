@@ -1,0 +1,22 @@
+# Source launch with video, Piper and Edge. ASR weights/KenLM are not installed.
+# torch is also imported by the existing ASR status screen and powers Silero.
+fastapi==0.136.1
+uvicorn==0.46.0
+httpx==0.28.1
+python-multipart==0.0.27
+pydantic==2.13.4
+numpy==2.4.4
+scipy==1.17.1
+torch==2.5.1
+torchaudio==2.5.1
+openai==2.36.0
+razdel==0.5.0
+num2words==0.5.13
+soundfile==0.13.1
+piper-tts==1.4.2
+pathvalidate==3.3.1
+edge-tts==7.3.1
+aiohttp==3.14.3
+av==19.0.2
+truststore==0.10.4
+omegaconf==2.3.0

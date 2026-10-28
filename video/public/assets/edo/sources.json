@@ -1,0 +1,16 @@
+[
+  {
+    "file": "02.png",
+    "source_url": "https://infostart.ru/upload/iblock/fca/fca56b99fb2e0d8c51778a78b8d08101.png",
+    "sha256": "6a9102d32be1b0fa8f560dc990e6ec4e9a8cc96fdd3e49a2f4432307b5ebacae",
+    "caption": "УНФ 3.0: команда расширенного сопоставления в форме номенклатуры ЭДО",
+    "unmodified": true
+  },
+  {
+    "file": "01.png",
+    "source_url": "https://infostart.ru/upload/iblock/4aa/4aa2d3c362c19d2649a90de7f07b1f47.png",
+    "sha256": "a2bbfad91b719fda479466688a656f91556cdc6423a5e6ece1ac34ea3e9faebc",
+    "caption": "УНФ 3.0: варианты поиска, префикс и дополнительные реквизиты в расширенном сопоставлении",
+    "unmodified": true
+  }
+]
