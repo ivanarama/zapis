@@ -1,0 +1,42 @@
+[
+  {
+    "source": "assets/01-onebase-export.png",
+    "alt": "OneBase: настройка выгрузки в Бухгалтерию",
+    "caption": "Рисунок 1. OneBase: настройка выгрузки в Бухгалтерию",
+    "sha256": "47a6d8ca772176827b978cc62e9470a261f5b17820edfd60ae5f3cbadfb92e66",
+    "pixelWidth": 1400,
+    "pixelHeight": 1100,
+    "cssWidth": 1400,
+    "cssHeight": 1100
+  },
+  {
+    "source": "assets/02-onebase-done.png",
+    "alt": "OneBase: выполненное задание выгрузки JSON",
+    "caption": "Рисунок 2. OneBase: выполненное задание выгрузки JSON",
+    "sha256": "1e497b2f8d91dea3b6c483f4202a01d9b929b1d94076d90cf657bb98f4013910",
+    "pixelWidth": 1400,
+    "pixelHeight": 1100,
+    "cssWidth": 1400,
+    "cssHeight": 1100
+  },
+  {
+    "source": "assets/03-bp3-preview-repeat.png",
+    "alt": "1С: предпросмотр повторной загрузки и статусы документов",
+    "caption": "Рисунок 3. 1С: предпросмотр повторной загрузки и статусы документов",
+    "sha256": "4a0dee1b7e3520e83d7a5f8a4a6f10800ebcf674eb5dc77ceff5da2ba8603889",
+    "pixelWidth": 935,
+    "pixelHeight": 720,
+    "cssWidth": 935,
+    "cssHeight": 720
+  },
+  {
+    "source": "assets/04-bp3-document.png",
+    "alt": "1С: открытый документ из демонстрационной загрузки",
+    "caption": "Рисунок 4. 1С: открытый документ из демонстрационной загрузки",
+    "sha256": "36bd7863cade06db32e97e0b8eed19997b26cba2c8d1c207b817734bc89de4f6",
+    "pixelWidth": 1022,
+    "pixelHeight": 534,
+    "cssWidth": 1022,
+    "cssHeight": 534
+  }
+]

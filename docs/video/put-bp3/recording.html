@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Записать создание видео про ПУТ → БП 3 — предпросмотр</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f3f5f7;color:#263238;font:16px/1.65 Arial,sans-serif}
+header{max-width:1064px;margin:28px auto 0;padding:0 32px;color:#607080;font-size:13px}
+article{max-width:1064px;margin:12px auto 40px;padding:36px 32px;background:white;border:1px solid #e1e5e9;border-radius:8px}
+h1{font-size:28px;line-height:1.3;margin:0 0 30px}p{margin:8px 0}p:has(img){margin:20px 0 8px}p:has(>em:only-child){font-size:14px;color:#627083}
+img{display:inline-block;vertical-align:middle}pre{overflow:auto;padding:18px 20px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:6px;font:14px/1.55 Consolas,monospace}
+a{color:#1769aa}p code,a{overflow-wrap:anywhere}.spoiler-title{cursor:pointer;font-weight:bold}.spoiler-content{padding:12px;border-left:3px solid #d4dce5}
+@media(max-width:700px){header{padding:0 18px}article{padding:24px 18px;border-radius:0}h1{font-size:24px}}
+.prompt-panel{padding:22px;background:#f2f5fb;border:1px solid #dce3ee;border-radius:10px;margin:24px 0 32px}.prompt-panel h2{font-size:21px;margin:0 0 10px}button{cursor:pointer;background:#6246b7;color:#fff;border:0;padding:11px 18px;border-radius:7px;font:600 15px Arial}textarea{display:block;width:100%;min-height:310px;margin:18px 0;border:1px solid #ccd4e2;border-radius:7px;background:#fff;padding:14px;font:13px/1.6 Consolas,monospace}#copy-state{color:#236546;font-size:14px}</style></head><body><header>ПУТ → БП 3 · Памятка для записи процесса создания ролика</header>
+<article><h1>Записать создание видео про ПУТ → БП 3</h1><section class="prompt-panel"><h2>Готовый запрос агенту</h2><p>Начните запись экрана, скопируйте запрос целиком и отправьте его в новый чат.</p><button id="copy-prompt" type="button">Скопировать промпт</button> <a href="PROMPT.md">Открыть отдельным файлом</a><p id="copy-state" role="status"></p><textarea id="prompt" readonly aria-label="Готовый промпт">Используй навык zapis-video и сделай готовый маркетинговый ролик про обмен ПУТ на OneBase → 1С:Бухгалтерия 3.0.
+
+Я записываю процесс создания ролика. Ты готовишь сценарий, выбираешь реальные кадры и управляешь Zapis через CLI. Zapis создаёт озвучку, анимацию и MP4.
+
+Материалы:
+- Релиз: D:\Projects\exchange\build\releases\put-bp3\v1.
+- Прочитай payload/instruction.md, payload/changelog.md, payload/manifest.json и evidence/REPORT.md.
+- Бриф и проверенные кадры: D:\Projects\zapis\docs\video\put-bp3\BRIEF.md и assets/sources.json в этой же папке.
+- Zapis: D:\Projects\zapis, командный интерфейс zapis.cmd video.
+- Рабочие материалы и результат сохраняй в новой подпапке D:\Projects\exchange\build\video-pipeline\put-bp3-recording. Релиз используй как источник.
+
+Задача ролика: показать проблему раздельного торгового и бухгалтерского учёта, затем управляемый перенос документов с выбором периода, предпросмотром и проверкой соответствий. После просмотра должно быть понятно, что делает обмен и где пользователь контролирует результат.
+
+Сделай горизонтальный ролик 16:9, 1080p, ориентировочно 60–90 секунд. Нужны проблема → решение → реальные экраны → результат → обращение к автору.
+
+Обязательно:
+- Реальный экран выгрузки в OneBase/PuT и реальный предпросмотр загрузки в 1С. Предпросмотру дай достаточно времени, чтобы прочитать строки и статусы.
+- Анимация: появление заголовка по словам, последовательная схема OneBase/PuT → JSON → предпросмотр БП → загрузка, движущиеся соединения и плавное приближение скриншотов. Движение должно помогать объяснению.
+- Русская озвучка Edge ru-RU-SvetlanaNeural. Сначала создай короткую пробу на фразе про ПУТ и предпросмотр. Сохрани её отдельно, затем продолжи подготовку кадров. Если этот голос недоступен, сообщи об этом и подготовь раскадровку до выбора другого голоса.
+- Текст диктора и короткие подписи в кадре напиши самостоятельно по материалам. Для диктора расшифруй ПУТ и БП так, чтобы они звучали понятно.
+- В финале: «Обмен ПУТ → БП 3: 15 000 ₽. При покупке 1 час доработки бесплатно». Контакт codebaza.ru/exchanges/put-bp3/. Цена относится к обмену, сама ПУТ бесплатна.
+
+Проверь факты: релиз передаёт JSON и поддерживает 17 видов документов. Заказы и закрытия заказов в этой версии исключены. По умолчанию документы записываются без проведения. Предпросмотр есть в 1С, в OneBase показана подготовка выгрузки. На приложенном снимке предпросмотра стоят статусы «Будет пропущен», это повторный файл, покажи это как защиту от дублей. Не выдавай этот кадр за первую загрузку.
+
+Нужны настоящие скриншоты. Можно взять проверенные кадры из брифа. Если снимаешь новые, работай с демонстрационной средой и навыками 1С. Подписи и схемы размещай вокруг исходного изображения, содержимое интерфейса сохраняй настоящим.
+
+Выполни полный цикл: изучение материалов → сценарий → video validate → голосовая проба → storyboard с проверкой кадров → короткая видеопроба → финальный render. Долгую сборку запускай с --no-wait и ожидай по ID. После таймаута продолжай wait для того же задания.
+
+В конце проверь воспроизведение, звук, читаемость и перемотку. Отдай ссылки на MP4, предпросмотр сцен, сценарий, WAV и субтитры. Сохраняй предыдущие сборки. Публиковать ролик на сайт в этой задаче не требуется.
+</textarea><p><a href="BRIEF.md">Бриф и подтверждённые факты</a> · <a href="assets/sources.json">Происхождение экранов</a> · <a href="../article_preview.html">Статья о генераторе видео</a></p></section>
+<!--
+  HTML-фрагмент для режима «Источник» в поле «Основной текст» Infostart.
+  Заголовок и анонс заполняются в отдельных полях публикации.
+  Комментарии ВСТАВИТЬ ВИДЕО/ИЛЛЮСТРАЦИЮ отмечают места медиаматериалов.
+-->
+<p>Нужно записать два разных результата: ваше видео о процессе работы с ИИ и получившийся маркетинговый ролик об обмене. Процесс можно показать примерно за 8&ndash;12 минут с ускорением ожидания. Готовый ролик ориентировочно длится 60&ndash;90 секунд.</p>
+<p>&nbsp;</p>
+<p><strong>Перед записью</strong></p>
+<p>&nbsp;</p>
+<p>1. Откройте эту памятку, описание релиза и новый чат агента. В Zapis уже установлены CLI и навык zapis-video.<br />
+2. Проверьте Zapis командой ниже. Она проверяет локальные зависимости и не создаёт ролик.<br />
+3. Проверьте, что четыре изображения ниже открываются и читаются. Это готовые настоящие кадры из проверок релиза.<br />
+4. Прослушайте голосовую пробу. В промпте выбран голос Edge Светлана. Если хотите другой голос, замените его имя и движок в промпте до записи. Сервис Edge требует интернет.<br />
+5. В программе записи включите захват окна агента и системного звука. Проверьте коротким тестом, что слышны ваш микрофон и проигрывание ролика.<br />
+6. Исходный релиз оставьте на месте. Агент создаст отдельную папку для новой сборки. Старые результаты удалять не требуется.<br /></p>
+<p>&nbsp;</p>
+<pre>
+<code>&amp; 'D:\Projects\zapis\zapis.cmd' video doctor
+&amp; 'D:\Projects\zapis\zapis.cmd' video voices --engine edge</code></pre>
+<p>&nbsp;</p>
+<p>Голосовую пробу можно сделать до записи. Выберите новый путь, если файл уже существует:</p>
+<p>&nbsp;</p>
+<pre>
+<code>&amp; 'D:\Projects\zapis\zapis.cmd' video preview --text 'Программа управления торговлей передаёт данные в один эс. Сначала проверим документы в предпросмотре.' --engine edge --speaker ru-RU-SvetlanaNeural --output 'D:\Projects\zapis\video_runs\put-bp3-voice-check.wav'</code></pre>
+<p>&nbsp;</p>
+<p><strong>Что сказать в начале</strong></p>
+<p>&nbsp;</p>
+<p>&laquo;У меня есть готовый обмен из ПУТ на OneBase в Бухгалтерию 3.0. Сейчас попрошу ИИ сделать о нём маркетинговый ролик: с понятной проблемой, решением, настоящими экранами и голосом. Сценарий подготовит агент, а Zapis соберёт видео через командный интерфейс&raquo;.</p>
+<p>&nbsp;</p>
+<p>Затем покажите папку релиза v1: payload содержит поставку и инструкцию, evidence содержит результаты проверки и реальные снимки интерфейса. Открывать исходники EPF или демонстрировать установку зависимостей для этого рассказа не требуется.</p>
+<p>&nbsp;</p>
+<p><strong>Порядок записи</strong></p>
+<p>&nbsp;</p>
+<div style="max-width: 1000px; margin: 20px auto; font-family: sans-serif; background: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid #eee;">
+<table style="width: 100%; border-collapse: collapse; text-align: left;">
+    <thead>
+        <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+            <th style="padding: 18px 24px; color: #495057; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Этап</th>
+            <th style="padding: 18px 24px; color: #495057; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Что сделать</th>
+            <th style="padding: 18px 24px; color: #495057; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Что объяснить зрителю</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr style="border-bottom: 1px solid #f0f0f0;">
+            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Показать задачу</td>
+            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Открыть релиз и 2&ndash;3 кадра из этой памятки</td>
+            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Исходные материалы уже есть, теперь из них получится история о продукте</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #f0f0f0;">
+            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Отправить запрос</td>
+            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Скопировать PROMPT.md целиком в чат агента</td>
+            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">В запросе заданы продукт, реальные экраны, анимация, голос и итоговый формат</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #f0f0f0;">
+            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Показать работу ИИ</td>
+            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Дать агенту прочитать инструкцию и подготовить сценарий</td>
+            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Агент выделяет проблему и решение, выбирает подтверждённые возможности</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #f0f0f0;">
+            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Проверить голос</td>
+            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Прослушать короткую пробу, обратить внимание на ПУТ, OneBase и БП</td>
+            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Наличие аудиофайла ещё не означает удачное произношение</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #f0f0f0;">
+            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Посмотреть раскадровку</td>
+            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Открыть ссылку review из результата CLI</td>
+            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Заголовки читаются, кадры настоящие, предпросмотр крупный</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #f0f0f0;">
+            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Поправить по смыслу</td>
+            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">При необходимости отправить короткую правку агенту</td>
+            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Например, &laquo;Сделай предпросмотр крупнее и держи его на экране дольше&raquo;</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #f0f0f0;">
+            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Собрать MP4</td>
+            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Дать агенту выполнить пробу и финальную сборку</td>
+            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Zapis выполняет синтез и рендер, ID позволяет следить за долгой задачей</td>
+        </tr>
+        <tr>
+            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Показать результат</td>
+            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Воспроизвести ролик со звуком и перейти к сцене предпросмотра</td>
+            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Финальная проверка ведётся по настоящему MP4</td>
+        </tr>
+    </tbody>
+</table>
+</div>
+<p>&nbsp;</p>
+<p>Ожидание синтеза и рендера можно ускорить в монтаже, сохранив видимым факт ожидания. Не обещайте фиксированную скорость генерации, она зависит от голоса, сети и компьютера.</p>
+<p>&nbsp;</p>
+<p><strong>Какие экраны должны попасть в ролик</strong></p>
+<p>&nbsp;</p>
+<p style="text-align: center;"><img alt="OneBase: настройка выгрузки в Бухгалтерию" src="assets/01-onebase-export.png" width="1400" style="max-width: 100%; height: auto;" /></p>
+<p style="text-align: center;"><em>Рисунок 1. OneBase: настройка выгрузки в Бухгалтерию</em></p>
+<p>&nbsp;</p>
+<p>Это реальная форма ПУТ на OneBase. Видны период, признак проведения и запуск фонового задания. В ней подготавливается выгрузка, предпросмотр списка документов показан в 1С.</p>
+<p>&nbsp;</p>
+<p style="text-align: center;"><img alt="OneBase: выполненное задание выгрузки JSON" src="assets/02-onebase-done.png" width="1400" style="max-width: 100%; height: auto;" /></p>
+<p style="text-align: center;"><em>Рисунок 2. OneBase: выполненное задание выгрузки JSON</em></p>
+<p>&nbsp;</p>
+<p>Статус &laquo;Выполнено&raquo; показывает готовность JSON. Поле с путём относится к серверу OneBase. При работе с удалённым сервером файл отдельно доставляют на компьютер с БП.</p>
+<p>&nbsp;</p>
+<p style="text-align: center;"><img alt="1С: предпросмотр повторной загрузки и статусы документов" src="assets/03-bp3-preview-repeat.png" width="935" style="max-width: 100%; height: auto;" /></p>
+<p style="text-align: center;"><em>Рисунок 3. 1С: предпросмотр повторной загрузки и статусы документов</em></p>
+<p>&nbsp;</p>
+<p>На снимке видны таблица документов и вкладки соответствий. Статусы &laquo;Будет пропущен&raquo; относятся к повторному файлу, документы уже загружались в демонстрационную базу. Этот кадр показывает проверку перед загрузкой и защиту от дублей.</p>
+<p>&nbsp;</p>
+<p style="text-align: center;"><img alt="1С: открытый документ из демонстрационной загрузки" src="assets/04-bp3-document.png" width="1022" style="max-width: 100%; height: auto;" /></p>
+<p style="text-align: center;"><em>Рисунок 4. 1С: открытый документ из демонстрационной загрузки</em></p>
+<p>&nbsp;</p>
+<p>Документ записан и открыт в БП. Уведомление о настройках налогообложения остаётся видимым. По этому снимку нельзя утверждать, что все хозяйственные операции уже проведены и проверены.</p>
+<p>&nbsp;</p>
+<p><strong>Если нужен новый кадр первой загрузки</strong></p>
+<p>&nbsp;</p>
+<p>Попросите агента подготовить отдельную демонстрационную копию и снять интерфейс через навыки 1С. В новом кадре должны быть настоящие статусы ожидаемых действий. Не заменяйте подписи в старом изображении.</p>
+<p>&nbsp;</p>
+<p>Проверяйте источник JSON и код базы. Для повторных выгрузок из одной демонстрационной базы код должен оставаться одинаковым. На первой загрузке можно показать предполагаемое создание документов, на повторной ожидаемое пропускание. Используйте отдельный тестовый контур и снимок состояния, если нужно повторять демонстрацию.</p>
+<p>&nbsp;</p>
+<p>Для ролика уже достаточно приложенных кадров. Перезагружать 42 документа ради одной иллюстрации не требуется. Если нужно показать действие живьём, заранее проверьте сценарий на демонстрационной копии.</p>
+<p>&nbsp;</p>
+<p><strong>Короткие правки во время записи</strong></p>
+<p>&nbsp;</p>
+<p>&laquo;Сделай предпросмотр в 1С крупнее. Текст поверх таблицы убери в отдельную подпись, сцену оставь на 14 секунд&raquo;.</p>
+<p>&nbsp;</p>
+<p>&laquo;На повторной загрузке скажи, что существующие документы будут пропущены без перезаписи. У нас на кадре именно эти статусы&raquo;.</p>
+<p>&nbsp;</p>
+<p>&laquo;В произносимом тексте замени ПУТ на “программа управления торговлей”, затем дай короткую пробу этой фразы&raquo;.</p>
+<p>&nbsp;</p>
+<p>&laquo;Схему OneBase &rarr; JSON &rarr; Бухгалтерия показывай последовательно. Каждый следующий этап появляется в тот момент, когда диктор до него доходит&raquo;.</p>
+<p>&nbsp;</p>
+<p><strong>Перед завершением</strong></p>
+<p>&nbsp;</p>
+<p>Проверьте реальное воспроизведение MP4, голос и перемотку. На сцене предпросмотра должны читаться номера, суммы и статусы. В финале цена 15 000 ₽ относится к обмену, указаны час доработки бесплатно и контакт автора. ПУТ остаётся бесплатной.</p>
+<p>&nbsp;</p>
+<p>Сохраните JSON сценария, WAV, SRT/VTT, кадры и папку результата CLI. Исходные экраны и их контрольные суммы находятся в assets/sources.json. Комплект не требует публикации EPF или автоматической загрузки видео на сайт.</p>
+</article>
+<script>document.querySelectorAll('.spoiler-title').forEach(function(el){el.addEventListener('click',function(){var body=el.nextElementSibling;body.style.display=body.style.display==='none'?'block':'none';});});</script>
+<script>document.getElementById('copy-prompt').addEventListener('click',async function(){var text=document.getElementById('prompt');try{await navigator.clipboard.writeText(text.value);document.getElementById('copy-state').textContent='Промпт скопирован. Можно отправить агенту.';}catch(error){text.focus();text.select();document.getElementById('copy-state').textContent='Текст выделен. Нажмите Ctrl+C.';}});</script></body></html>

@@ -1,0 +1,20 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {spawnSync} from 'node:child_process';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const kit = path.join(root, 'docs/video/put-bp3');
+const result = spawnSync(process.execPath, [path.join(root, 'tools/format_article.cjs'), path.join(kit, 'recording.md'), '--image-scale', '1'], {encoding:'utf8'});
+if (result.status !== 0) throw new Error(result.stderr || result.stdout);
+const escape = value => value.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+const prompt = await fs.readFile(path.join(kit, 'PROMPT.md'), 'utf8');
+let guide = await fs.readFile(path.join(kit, 'recording_preview.html'), 'utf8');
+guide = guide.replace('Локальный предпросмотр. В редактор Инфостарта вставляется отдельный файл *_infostart.html.', 'ПУТ → БП 3 · Памятка для записи процесса создания ролика');
+const panel = `<section class="prompt-panel"><h2>Готовый запрос агенту</h2><p>Начните запись экрана, скопируйте запрос целиком и отправьте его в новый чат.</p><button id="copy-prompt" type="button">Скопировать промпт</button> <a href="PROMPT.md">Открыть отдельным файлом</a><p id="copy-state" role="status"></p><textarea id="prompt" readonly aria-label="Готовый промпт">${escape(prompt)}</textarea><p><a href="BRIEF.md">Бриф и подтверждённые факты</a> · <a href="assets/sources.json">Происхождение экранов</a> · <a href="../article_preview.html">Статья о генераторе видео</a></p></section>`;
+guide = guide.replace(/(<article><h1>[\s\S]*?<\/h1>)/, '$1' + panel);
+guide = guide.replace('</style>', '.prompt-panel{padding:22px;background:#f2f5fb;border:1px solid #dce3ee;border-radius:10px;margin:24px 0 32px}.prompt-panel h2{font-size:21px;margin:0 0 10px}button{cursor:pointer;background:#6246b7;color:#fff;border:0;padding:11px 18px;border-radius:7px;font:600 15px Arial}textarea{display:block;width:100%;min-height:310px;margin:18px 0;border:1px solid #ccd4e2;border-radius:7px;background:#fff;padding:14px;font:13px/1.6 Consolas,monospace}#copy-state{color:#236546;font-size:14px}</style>');
+guide = guide.replace('</body>', `<script>document.getElementById('copy-prompt').addEventListener('click',async function(){var text=document.getElementById('prompt');try{await navigator.clipboard.writeText(text.value);document.getElementById('copy-state').textContent='Промпт скопирован. Можно отправить агенту.';}catch(error){text.focus();text.select();document.getElementById('copy-state').textContent='Текст выделен. Нажмите Ctrl+C.';}});</script></body>`);
+await fs.writeFile(path.join(kit, 'recording.html'), guide);
+for (const file of ['recording_preview.html','recording_infostart.html']) await fs.unlink(path.join(kit, file));
+console.log('Готово: docs/video/put-bp3/recording.html');

@@ -6,7 +6,9 @@ import {spawnSync} from 'node:child_process';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 for (const name of ['article', 'recording']) {
   const file = path.join(root, 'docs/video', name + '.md');
-  const result = spawnSync(process.execPath, [path.join(root, 'tools/format_article.cjs'), file, '--image-scale', '2'], {encoding: 'utf8'});
+  // The article mixes original 1x release screenshots with browser captures.
+  // Use natural widths, bounded by the article column, so the 1C table stays readable.
+  const result = spawnSync(process.execPath, [path.join(root, 'tools/format_article.cjs'), file, '--image-scale', '1'], {encoding: 'utf8'});
   if (result.status !== 0) throw new Error(result.stderr || result.stdout);
   console.log(result.stdout.trim());
 }
