@@ -1,0 +1,70 @@
+{
+  "version": 2,
+  "artifact": "put-bp3-v6-20261029-promo-r2",
+  "files": {
+    "images-v2/storyboard.png": {
+      "kind": "contact sheet of actual video frames",
+      "source": "source/storyboard.html",
+      "frames": [
+        "source/frame-problem.png",
+        "source/frame-solution.png",
+        "source/frame-result.png"
+      ],
+      "sha256": "733a28841ccd7602844307fa9b370f604a3e09e2cc9516e611803e30d966b55b",
+      "bytes": 434863
+    },
+    "images-v2/pipeline.png": {
+      "kind": "explanatory diagram",
+      "source": "source/pipeline.svg",
+      "sha256": "8085c448cbc71d3199efb8b75232a58b49709238bc2b5fceacf6ee55b0b1103b",
+      "bytes": 113002
+    },
+    "images-v2/editor-put.png": {
+      "kind": "actual Zapis UI screenshot",
+      "capture": {
+        "application": "Zapis browser interface",
+        "product": "ПУТ → БП 3 · Обмен документами",
+        "source_campaign": "put-bp3-v6-20261029-promo-r2/campaign.json",
+        "capture": "real scene card imported through the UI, genuine text fields, no DOM alteration",
+        "device_scale_factor": 2,
+        "user_draft_preserved": "separate browser context",
+        "narration_field": "resized with native textarea handle so the complete text is visible"
+      },
+      "sha256": "049a7adbbe7f5c44c9ba7676532d57dfb508f02f57179fd9830a468c6f3e091a",
+      "bytes": 74802
+    },
+    "images-v2/onebase-export-v6.png": {
+      "kind": "actual product screenshot",
+      "source": "artifact/assets/onebase-export-v6.png",
+      "unmodified": true,
+      "sha256": "8249210a83a94e959642526e5f1ca1273469d86f6288eef700aa489af780b4ab",
+      "bytes": 116000
+    },
+    "images-v2/bp3-preview-v6.png": {
+      "kind": "actual product screenshot",
+      "source": "artifact/assets/bp3-preview-v6.png",
+      "unmodified": true,
+      "sha256": "c73b447b32ae9231531c627305df4f6471214570b91dc2a3368bea70a59f8f40",
+      "bytes": 36297
+    },
+    "images-v2/flow-animation.gif": {
+      "kind": "actual video excerpt",
+      "source": "artifact/put-bp3-v6-promo-r2.mp4",
+      "source_start_seconds": 20.4,
+      "export_duration_seconds": 8.88,
+      "frames": 71,
+      "fps": 8,
+      "contains_audio": false,
+      "sha256": "56fbb2534f415d2934fc8bf4b270d64f928eb984e221204962b220dd1b93e34b",
+      "bytes": 906184
+    },
+    "images-v2/preview-frame.png": {
+      "kind": "actual video frame",
+      "source": "artifact/verification-frames/preview.png",
+      "time_seconds": 52.208333333,
+      "unmodified": true,
+      "sha256": "edbad6a2525d3ea7809d1fa31f5302b5e633875ca1c31c97028ec1aacb5352bf",
+      "bytes": 715571
+    }
+  }
+}

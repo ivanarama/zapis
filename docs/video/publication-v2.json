@@ -1,0 +1,37 @@
+{
+  "version": 2,
+  "status": "draft",
+  "title": "Как я расширил «Запись»: маркетинговые ролики из проекта, скриншотов и озвучки",
+  "summary": "В «Записи» уже была озвучка текста. Я расширил её до сборки маркетинговых роликов: ИИ готовит историю, реальные экраны показывают продукт, Zapis добавляет речь и анимацию. Разбираю готовый ролик ПУТ → БП 3 с кадрами и GIF.",
+  "keywords": [
+    "Zapis",
+    "Запись",
+    "ИИ",
+    "маркетинговое видео",
+    "Remotion",
+    "озвучка",
+    "1С"
+  ],
+  "previous_article": "https://infostart.ru/1c/articles/2748070/",
+  "repository": "https://github.com/ivanarama/zapis/tree/feature/marketing-video-pipeline",
+  "images": [
+    "images-v2/storyboard.png",
+    "images-v2/pipeline.png",
+    "images-v2/editor-put.png",
+    "images-v2/onebase-export-v6.png",
+    "images-v2/bp3-preview-v6.png",
+    "images-v2/flow-animation.gif",
+    "images-v2/preview-frame.png"
+  ],
+  "example_video": {
+    "product": "ПУТ → БП 3",
+    "revision": "v6-promo-r2",
+    "seconds": 83.093,
+    "width": 1920,
+    "height": 1080,
+    "scene_count": 8,
+    "url": "https://codebaza.ru/media/exchanges/put-bp3/overview.mp4",
+    "sha256": "68ee19b4308ffa0fb23638b8456537a5324d20e99a6b69f13017952ae13d4b04"
+  },
+  "note": "Новая самостоятельная версия. Исходная статья и опубликованные материалы не заменяются. Изображения из images-v2 нужно загрузить в редактор публикации и заменить относительные src на выданные upload-URL."
+}

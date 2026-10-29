@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="510" viewBox="0 0 1080 510">
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="none" stroke="#087d73" stroke-width="1.5"/></marker></defs>
+<rect width="1080" height="510" rx="20" fill="#f1f6f2"/>
+<g font-family="Arial, sans-serif" fill="#142e37">
+<text x="36" y="48" font-size="28" font-weight="700">Как проект превращается в ролик</text>
+<text x="36" y="80" font-size="18" fill="#506b72">Содержание готовит агент. Озвучку и видео собирает Zapis.</text>
+<rect x="36" y="115" width="304" height="228" rx="16" fill="#fff" stroke="#c8dcd4"/><text x="58" y="150" fill="#087d73" font-size="16" font-weight="700">01</text><text x="58" y="191" font-size="23" font-weight="700">Материалы проекта</text><text x="58" y="234" font-size="19">Инструкция и описание</text><text x="58" y="265" font-size="19">Реальные скриншоты</text><text x="58" y="296" font-size="19">Факты о продукте</text><rect x="388" y="115" width="304" height="228" rx="16" fill="#e0f0eb" stroke="#c8dcd4"/><text x="410" y="150" fill="#087d73" font-size="16" font-weight="700">02</text><text x="410" y="191" font-size="23" font-weight="700">ИИ-агент</text><text x="410" y="234" font-size="19">Выбирает историю</text><text x="410" y="265" font-size="19">Пишет текст сцен</text><text x="410" y="296" font-size="19">Подбирает экраны</text><rect x="740" y="115" width="304" height="228" rx="16" fill="#fff" stroke="#c8dcd4"/><text x="762" y="150" fill="#087d73" font-size="16" font-weight="700">03</text><text x="762" y="191" font-size="23" font-weight="700">Zapis</text><text x="762" y="234" font-size="19">Синтезирует речь</text><text x="762" y="265" font-size="19">Рисует анимацию</text><text x="762" y="296" font-size="19">Собирает MP4</text>
+<g stroke="#087d73" stroke-width="2.4" marker-end="url(#arrow)"><path d="M352 228H373"/><path d="M704 228H725"/><path d="M893 356V382"/></g>
+<rect x="36" y="395" width="1008" height="80" rx="14" fill="#142e37"/>
+<text x="60" y="443" fill="#bcf1dc" font-size="17" font-weight="700">НА ВЫХОДЕ</text>
+<text x="228" y="443" fill="#fff" font-size="22">Видео · Субтитры · Звук сцен · Сценарий для правок</text>
+</g></svg>
