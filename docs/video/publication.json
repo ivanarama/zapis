@@ -14,14 +14,11 @@
   "repository": "https://github.com/ivanarama/zapis",
   "source_video": "https://www.youtube.com/watch?v=oWbUL_TZm_4",
   "images": [
-    "images/editor.png",
     "images/put-onebase.png",
     "images/put-bp3-settings.png",
     "images/put-bp3-counterparties.png",
     "images/put-bp3-preview.png",
-    "images/put-bp3-preview-details.png",
-    "images/flow.png",
-    "images/result.png"
+    "images/put-bp3-preview-details.png"
   ],
   "note": "Черновик по рабочей ветке с CLI. Кадры БП пересняты 29 октября с PuT-BP3_v5.epf. OneBase показывает прежний неизменившийся экспортёр. Ролик создаётся отдельным запросом.",
   "recording_kit": "put-bp3/recording.html"
