@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Собрать ролик в Zapis под запись — предпросмотр</title>
+<title>Ролик о проекте по одному запросу — предпросмотр</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#f3f5f7;color:#263238;font:16px/1.65 Arial,sans-serif}
 header{max-width:1064px;margin:28px auto 0;padding:0 32px;color:#607080;font-size:13px}
@@ -10,104 +10,27 @@ img{display:inline-block;vertical-align:middle}pre{overflow:auto;padding:18px 20
 a{color:#1769aa}p code,a{overflow-wrap:anywhere}.spoiler-title{cursor:pointer;font-weight:bold}.spoiler-content{padding:12px;border-left:3px solid #d4dce5}
 @media(max-width:700px){header{padding:0 18px}article{padding:24px 18px;border-radius:0}h1{font-size:24px}}
 </style></head><body><header>Zapis · Сценарий записи процесса. Статья находится в article_preview.html.</header>
-<article><h1>Собрать ролик в Zapis под запись</h1>
+<article><h1>Ролик о проекте по одному запросу</h1>
 <!--
   HTML-фрагмент для режима «Источник» в поле «Основной текст» Infostart.
   Заголовок и анонс заполняются в отдельных полях публикации.
   Комментарии ВСТАВИТЬ ВИДЕО/ИЛЛЮСТРАЦИЮ отмечают места медиаматериалов.
 -->
-<p>Для записи актуального примера ПУТ &rarr; БП 3 подготовлен <a href="put-bp3/recording.html">отдельный комплект с готовым промптом и настоящими экранами</a>. Ниже оставлена короткая учебная демонстрация ЭДО для знакомства с интерфейсом.</p>
+<p>Укажите папку проекта и желаемый результат. Например:</p>
 <p>&nbsp;</p>
-<p>Показываем готовый проект: сценарий, реальные скриншоты, выбор голоса, раскадровку и готовое видео. Пример &laquo;ЭДО · короткий ролик&raquo; состоит из трёх сцен: проблема с названиями поставщика, схема решения и предложение продукта.</p>
+<p>Сделай минутный рекламный ролик о проекте из папки C:\Projects\my-product. Покажи проблему покупателя и её решение на настоящих экранах. Добавь понятную анимацию и озвучку.</p>
 <p>&nbsp;</p>
-<p><strong>Подготовка до записи</strong></p>
+<p>Агент изучит материалы, подготовит сценарий, найдёт подходящие экраны и вызовет Zapis для сборки. Если без доступа к приложению нельзя получить нужный кадр, он уточнит это отдельно. Сценарий и результаты сохраняются для следующих правок.</p>
 <p>&nbsp;</p>
-<p>1. Выполните PREPARE-VIDEO.cmd, затем START-VIDEO.cmd. Откроется http://127.0.0.1:8001/#video.<br />
-2. Нажмите &laquo;Загрузить&raquo; рядом с коротким примером ЭДО. Предыдущий черновик сохраняется в локальном хранилище браузера, готовые сборки остаются в истории.<br />
-3. Прослушайте голоса на одном тексте и выберите подходящий. Для записи без интернета подходит уже загруженный Piper. Для Edge нужен интернет даже после прогрева.<br />
-4. Один раз соберите пробный ролик. Это загрузит шрифты, браузерные компоненты и выбранную голосовую модель. Установка моделей и зависимостей в демонстрацию не входит.<br />
-5. Проверьте звук на компьютере, масштаб браузера 100%, захват системного звука в программе записи и отсутствие личных данных на экранах. При необходимости включите светлую тему штатно в настройках Zapis.<br />
-6. Откройте эту памятку и черновик статьи в соседних вкладках. Не запускайте сервер с --reload во время записи: изменение Python-файла прервёт текущую сборку.<br /></p>
+<p><strong>Записать процесс</strong></p>
 <p>&nbsp;</p>
-<p><strong>Ход демонстрации, около 6&ndash;8 минут</strong></p>
+<p>1. Включите запись экрана, при необходимости микрофон и системный звук.<br />
+2. Покажите папку проекта и отправьте запрос агенту.<br />
+3. Посмотрите результат. Попросите нужную правку обычным сообщением, например: &laquo;Замедли сцену с таблицей и сделай подпись короче&raquo;.<br /></p>
 <p>&nbsp;</p>
-<div style="max-width: 1000px; margin: 20px auto; font-family: sans-serif; background: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid #eee;">
-<table style="width: 100%; border-collapse: collapse; text-align: left;">
-    <thead>
-        <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;">
-            <th style="padding: 18px 24px; color: #495057; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Время</th>
-            <th style="padding: 18px 24px; color: #495057; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Что показать</th>
-            <th style="padding: 18px 24px; color: #495057; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Что объяснить</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr style="border-bottom: 1px solid #f0f0f0;">
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">0:00</td>
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Готовый MP4 из истории</td>
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Какой результат получится из исходного проекта</td>
-        </tr>
-        <tr style="border-bottom: 1px solid #f0f0f0;">
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">0:30</td>
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Три сцены короткого примера</td>
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">В начале узнаваемая проблема, затем способ решения и предложение</td>
-        </tr>
-        <tr style="border-bottom: 1px solid #f0f0f0;">
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">1:20</td>
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Скриншот в первой сцене</td>
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Это реальный экран расширения, источник указан в evidence</td>
-        </tr>
-        <tr style="border-bottom: 1px solid #f0f0f0;">
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">2:00</td>
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Правку заголовка и текста диктора</td>
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Текст в кадре и произносимый текст редактируются отдельно</td>
-        </tr>
-        <tr style="border-bottom: 1px solid #f0f0f0;">
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">2:40</td>
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Две короткие пробы голосов</td>
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Сначала оцениваем произношение и интонацию, затем собираем ролик</td>
-        </tr>
-        <tr style="border-bottom: 1px solid #f0f0f0;">
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">3:20</td>
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Кнопку &laquo;Раскадровка&raquo;</td>
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Проверяем читаемость и содержание кадров без синтеза речи</td>
-        </tr>
-        <tr style="border-bottom: 1px solid #f0f0f0;">
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">4:00</td>
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Схему и revealAt в JSON</td>
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Узлы появляются по заданным секундам, подписи остаются обычным текстом</td>
-        </tr>
-        <tr style="border-bottom: 1px solid #f0f0f0;">
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">4:40</td>
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">&laquo;Собрать с голосом&raquo;, быстрая проба</td>
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Показываем стадии озвучки и рендера. Ожидание можно ускорить при монтаже</td>
-        </tr>
-        <tr style="border-bottom: 1px solid #f0f0f0;">
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">5:40</td>
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Результат, звук, перемотку</td>
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Проверяем MP4, а не только первый кадр</td>
-        </tr>
-        <tr>
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">6:20</td>
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">&laquo;Все сцены&raquo;, JSON и субтитры</td>
-            <td style="padding: 20px 24px; line-height: 1.5; color: #333;">Артефакты остаются в проекте и доступны для следующей сборки</td>
-        </tr>
-    </tbody>
-</table>
-</div>
+<p>Для демонстрации подготовлен <a href="put-bp3/recording.html">пример ПУТ &rarr; БП 3 с кнопкой копирования запроса</a>. В нём используются реальные экраны OneBase и загрузчика БП v5.</p>
 <p>&nbsp;</p>
-<p>Фактическое ожидание зависит от компьютера, выбранного голоса и сети. Не обещайте заранее заданное время сборки. Для первой записи достаточно горизонтальной быстрой пробы. Финальный ролик можно затем собрать в 1080p и двух форматах.</p>
-<p>&nbsp;</p>
-<p><strong>Повторить с исходного примера</strong></p>
-<p>&nbsp;</p>
-<p>Нажмите &laquo;Загрузить&raquo; у примера ещё раз. Это восстанавливает исходные три сцены в редакторе. История и файлы предыдущих запусков сохраняются. Для отдельного сценария сохраните JSON кнопкой &laquo;Сохранить JSON&raquo;.</p>
-<p>&nbsp;</p>
-<p>Если нужен только терминал, из корня проекта:</p>
-<p>&nbsp;</p>
-<pre>
-<code class="language-bash">python -m backend.cli video storyboard --example edo-short
-python -m backend.cli video render --example edo-short --engine piper --speaker ru_RU-irina-medium --preset recording</code></pre>
-<p>&nbsp;</p>
-<p>Скриншоты собственного проекта можно положить в video/public/assets, затем указать относительный путь в image. Через интерфейс файлы загружаются кнопкой &laquo;Скриншот&raquo; у сцены. Для произношения специальных терминов поправьте narration и снова прослушайте пробу. Готовую запись диктора можно прикрепить как WAV к отдельной сцене.</p>
+<p>Установка Zapis и загрузка голосовых моделей выполняются один раз до записи. Требования и установка описаны в <a href="https://github.com/ivanarama/zapis/blob/feature/marketing-video-pipeline/README.md">README</a>, устройство конвейера в <a href="article_preview.html">статье</a>. Готовый ролик просмотрите со звуком перед публикацией.</p>
 </article>
 <script>document.querySelectorAll('.spoiler-title').forEach(function(el){el.addEventListener('click',function(){var body=el.nextElementSibling;body.style.display=body.style.display==='none'?'block':'none';});});</script>
 </body></html>

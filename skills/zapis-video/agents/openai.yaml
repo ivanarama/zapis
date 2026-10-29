@@ -1,4 +1,4 @@
 interface:
-  display_name: "Видео через Zapis"
-  short_description: "Сценарий, озвучка и сборка видео через CLI Zapis"
-  default_prompt: "Используй $zapis-video, чтобы сделать ролик из описания проекта и реальных скриншотов."
+  display_name: "Видео о проекте"
+  short_description: "Готовый ролик по папке и обычному запросу"
+  default_prompt: "Используй $zapis-video, чтобы сделать ролик об этом проекте с реальными экранами, анимацией и озвучкой."
