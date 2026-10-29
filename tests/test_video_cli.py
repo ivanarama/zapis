@@ -24,6 +24,26 @@ def result(capsys):
     return json.loads(capsys.readouterr().out)
 
 
+def test_frozen_cli_starts_its_executable_as_a_server(service, monkeypatch):
+    from types import SimpleNamespace
+
+    client = Client(service)
+    responses = iter([None, {"available": True}])
+    monkeypatch.setattr(client, "_probe", lambda: next(responses))
+    monkeypatch.setattr("sys.frozen", True, raising=False)
+    monkeypatch.setattr("sys.executable", "Zapis.exe")
+    calls = []
+
+    def spawn(command, **kwargs):
+        calls.append(command)
+        return SimpleNamespace(pid=12345, poll=lambda: None)
+
+    monkeypatch.setattr("backend.cli.client.subprocess.Popen", spawn)
+    assert client.ensure()["available"] is True
+    assert calls == [["Zapis.exe", "--serve-video"]]
+    assert (service.storage / "cli-server.pid").read_text() == "12345"
+
+
 def test_bad_arguments_return_machine_readable_error(capsys):
     assert cli.main(["video", "render", "--unknown"]) == 2
     data = result(capsys)

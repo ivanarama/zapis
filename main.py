@@ -160,7 +160,13 @@ if __name__ == "__main__":
     )
 
     try:
-        port = _find_free_port(8001)
+        from backend.config import get_settings, save_settings
+
+        settings = get_settings()
+        port = _find_free_port(settings.app.port)
+        if port != settings.app.port:
+            settings.app.port = port
+            save_settings(settings)
         log.info("Using port %d", port)
 
         server_thread = threading.Thread(target=_run_server, args=(port,), daemon=True)

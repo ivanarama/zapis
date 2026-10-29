@@ -69,7 +69,9 @@ class Client:
         environment = {**os.environ, "PYTHONIOENCODING": "utf-8"}
         with (self.service.storage / "cli-server.log").open("ab") as output:
             flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
-            process = subprocess.Popen([sys.executable, "-m", "backend.marketing.launch", "--no-browser"],
+            command = ([sys.executable, "--serve-video"] if getattr(sys, "frozen", False)
+                       else [sys.executable, "-m", "backend.marketing.launch", "--no-browser"])
+            process = subprocess.Popen(command,
                                        cwd=root, stdin=subprocess.DEVNULL, stdout=output, stderr=output,
                                        env=environment, creationflags=flags, start_new_session=os.name != "nt")
         (self.service.storage / "cli-server.pid").write_text(str(process.pid), encoding="ascii")

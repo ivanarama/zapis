@@ -16,6 +16,7 @@
 """
 
 import json
+import os
 import socket
 import sys
 import threading
@@ -257,7 +258,9 @@ def _new_page(fake):
         from playwright.sync_api import sync_playwright
 
         _pw = sync_playwright().start()
-        _browser = _pw.chromium.launch(headless=True)
+        _browser = _pw.chromium.launch(
+            headless=True, executable_path=os.environ.get("ZAPIS_TEST_BROWSER")
+        )
     _, port = _get_server()
     context = _browser.new_context()
     page = context.new_page()

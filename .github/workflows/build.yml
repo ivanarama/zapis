@@ -20,7 +20,7 @@ jobs:
         include:
           - os: windows-latest
             artifact: Zapis-windows
-            build_cmd: .\build.ps1
+            build_cmd: .\build-portable.ps1
           - os: ubuntu-latest
             artifact: Zapis-linux
             build_cmd: bash build.sh
@@ -39,10 +39,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ runner.os == 'Windows' && '3.12' || '3.11' }}
+
+      - name: Set up Node.js for Windows video renderer
+        if: ${{ runner.os == 'Windows' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
 
       # Windows: MSVC toolchain for kenlm C++ extension
       - name: Add MSBuild to PATH
@@ -81,8 +87,7 @@ jobs:
         with:
           name: ${{ matrix.artifact }}
           path: |
-            dist/Zapis.exe
-            dist/settings.json
+            dist/Zapis-Windows/**
           if-no-files-found: error
 
       - name: Upload artifact (Linux)
@@ -105,6 +110,10 @@ jobs:
             dist/settings.json
           if-no-files-found: error
 
+      - name: Package Windows app for release
+        if: ${{ runner.os == 'Windows' && startsWith(github.ref, 'refs/tags/v') }}
+        run: Compress-Archive -Path dist/Zapis-Windows -DestinationPath dist/Zapis-windows.zip
+
       # macOS: .app — это каталог, а GitHub Release принимает только файлы.
       # Запаковываем в zip после upload-artifact (тот уже сохранил .app как артефакт).
       - name: Package macOS app for release
@@ -113,8 +122,14 @@ jobs:
           ditto -c -k --keepParent "dist/Zapis.app" "dist/${{ matrix.artifact }}.zip"
           rm -rf "dist/Zapis.app"
 
+      - name: Attach Windows package to GitHub Release
+        if: ${{ runner.os == 'Windows' && startsWith(github.ref, 'refs/tags/v') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/Zapis-windows.zip
+
       - name: Attach to GitHub Release
-        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        if: ${{ runner.os != 'Windows' && startsWith(github.ref, 'refs/tags/v') }}
         uses: softprops/action-gh-release@v2
         with:
           files: |
