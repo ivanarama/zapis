@@ -20,23 +20,43 @@
     "cssHeight": 1100
   },
   {
-    "source": "assets/03-bp3-preview-repeat.png",
-    "alt": "1С: предпросмотр повторной загрузки и статусы документов",
-    "caption": "Рисунок 3. 1С: предпросмотр повторной загрузки и статусы документов",
-    "sha256": "4a0dee1b7e3520e83d7a5f8a4a6f10800ebcf674eb5dc77ceff5da2ba8603889",
-    "pixelWidth": 935,
-    "pixelHeight": 720,
-    "cssWidth": 935,
-    "cssHeight": 720
+    "source": "assets/03-bp3-settings-v5.png",
+    "alt": "1С, v5: выбор организаций, периода, видов документов и режима поиска",
+    "caption": "Рисунок 3. 1С, v5: выбор организаций, периода, видов документов и режима поиска",
+    "sha256": "bc3ee42b7801b595fd7c990369996096b22a1e2c853679a8c918464c884632f4",
+    "pixelWidth": 1364,
+    "pixelHeight": 718,
+    "cssWidth": 1364,
+    "cssHeight": 718
   },
   {
-    "source": "assets/04-bp3-document.png",
-    "alt": "1С: открытый документ из демонстрационной загрузки",
-    "caption": "Рисунок 4. 1С: открытый документ из демонстрационной загрузки",
-    "sha256": "36bd7863cade06db32e97e0b8eed19997b26cba2c8d1c207b817734bc89de4f6",
-    "pixelWidth": 1022,
-    "pixelHeight": 534,
-    "cssWidth": 1022,
-    "cssHeight": 534
+    "source": "assets/04-bp3-counterparties-v5.png",
+    "alt": "1С, v5: контрагенты, договоры, валюта и операция",
+    "caption": "Рисунок 4. 1С, v5: контрагенты, договоры, валюта и операция",
+    "sha256": "4aa29ba15788f6f1bbd837781fa11070d982c6cbd51aa65519da72d228928db7",
+    "pixelWidth": 1364,
+    "pixelHeight": 718,
+    "cssWidth": 1364,
+    "cssHeight": 718
+  },
+  {
+    "source": "assets/05-bp3-preview-v5.png",
+    "alt": "1С, v5: отдельный предпросмотр документов",
+    "caption": "Рисунок 5. 1С, v5: отдельный предпросмотр документов",
+    "sha256": "136dcaf130ff08e1a8dfab0fe8546e34338885016b8f192452379810d6b9c5cc",
+    "pixelWidth": 1364,
+    "pixelHeight": 718,
+    "cssWidth": 1364,
+    "cssHeight": 718
+  },
+  {
+    "source": "assets/06-bp3-preview-details-v5.png",
+    "alt": "1С, v5: правая часть предпросмотра со статусом, СФ и хозяйственной операцией",
+    "caption": "Рисунок 6. 1С, v5: правая часть предпросмотра со статусом, СФ и хозяйственной операцией",
+    "sha256": "3bed351522ad95c5bc9d9c6a63e71ae9b613732ebbb91ed7e9c0e68e2a415ee4",
+    "pixelWidth": 1364,
+    "pixelHeight": 718,
+    "cssWidth": 1364,
+    "cssHeight": 718
   }
 ]

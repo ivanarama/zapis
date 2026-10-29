@@ -1,5 +1,5 @@
 {
-  "release_directory": "D:\\Projects\\exchange\\build\\releases\\put-bp3\\v1",
+  "release_directory": "D:\\Projects\\exchange\\build\\releases\\put-bp3\\v5",
   "assets": [
     {
       "file": "01-onebase-export.png",
@@ -7,7 +7,9 @@
       "source_relative": "evidence/source-ui/all-form.png",
       "sha256": "47a6d8ca772176827b978cc62e9470a261f5b17820edfd60ae5f3cbadfb92e66",
       "description": "OneBase: параметры выгрузки",
-      "unmodified": true
+      "unmodified": true,
+      "source_file": "D:\\Projects\\exchange\\build\\releases\\put-bp3\\v1\\evidence\\source-ui\\all-form.png",
+      "fresh_capture": false
     },
     {
       "file": "02-onebase-done.png",
@@ -15,23 +17,63 @@
       "source_relative": "evidence/source-ui/all-done.png",
       "sha256": "1e497b2f8d91dea3b6c483f4202a01d9b929b1d94076d90cf657bb98f4013910",
       "description": "OneBase: завершённое задание",
+      "unmodified": true,
+      "source_file": "D:\\Projects\\exchange\\build\\releases\\put-bp3\\v1\\evidence\\source-ui\\all-done.png",
+      "fresh_capture": false
+    },
+    {
+      "file": "03-bp3-settings-v5.png",
+      "source_capture": "D:\\Projects\\NewIS\\.local\\put-bp3-current-capture\\final-v5\\01-settings.png",
+      "source_release": "put-bp3/v5",
+      "processor_sha256": "e51dc006c85fd6e7ec07c17be1418392348b6c5881387434c0f452fd49a41a6c",
+      "sha256": "bc3ee42b7801b595fd7c990369996096b22a1e2c853679a8c918464c884632f4",
+      "description": "Настройки v5: организации, период, виды документов и режимы поиска",
+      "width": 1364,
+      "height": 718,
+      "fresh_capture": true,
       "unmodified": true
     },
     {
-      "file": "03-bp3-preview-repeat.png",
-      "source_release": "put-bp3/v1",
-      "source_relative": "evidence/bp3-ui/ui/preview.png",
-      "sha256": "4a0dee1b7e3520e83d7a5f8a4a6f10800ebcf674eb5dc77ceff5da2ba8603889",
-      "description": "БП: предпросмотр повторного файла, документы будут пропущены",
+      "file": "04-bp3-counterparties-v5.png",
+      "source_capture": "D:\\Projects\\NewIS\\.local\\put-bp3-current-capture\\final-v5\\02-counterparties.png",
+      "source_release": "put-bp3/v5",
+      "processor_sha256": "e51dc006c85fd6e7ec07c17be1418392348b6c5881387434c0f452fd49a41a6c",
+      "sha256": "4aa29ba15788f6f1bbd837781fa11070d982c6cbd51aa65519da72d228928db7",
+      "description": "Сопоставления v5: организация, контрагент, договор, валюта, операция",
+      "width": 1364,
+      "height": 718,
+      "fresh_capture": true,
       "unmodified": true
     },
     {
-      "file": "04-bp3-document.png",
-      "source_release": "put-bp3/v1",
-      "source_relative": "evidence/bp3-ui/ui/document.png",
-      "sha256": "36bd7863cade06db32e97e0b8eed19997b26cba2c8d1c207b817734bc89de4f6",
-      "description": "БП: записанный документ, проведение не доказывается",
+      "file": "05-bp3-preview-v5.png",
+      "source_capture": "D:\\Projects\\NewIS\\.local\\put-bp3-current-capture\\final-v5\\03-preview.png",
+      "source_release": "put-bp3/v5",
+      "processor_sha256": "e51dc006c85fd6e7ec07c17be1418392348b6c5881387434c0f452fd49a41a6c",
+      "sha256": "136dcaf130ff08e1a8dfab0fe8546e34338885016b8f192452379810d6b9c5cc",
+      "description": "Предпросмотр v5: документы, номера, контрагенты, организации, суммы, склады",
+      "width": 1364,
+      "height": 718,
+      "fresh_capture": true,
+      "unmodified": true
+    },
+    {
+      "file": "06-bp3-preview-details-v5.png",
+      "source_capture": "D:\\Projects\\NewIS\\.local\\put-bp3-current-capture\\final-v5\\04-preview-details.png",
+      "source_release": "put-bp3/v5",
+      "processor_sha256": "e51dc006c85fd6e7ec07c17be1418392348b6c5881387434c0f452fd49a41a6c",
+      "sha256": "3bed351522ad95c5bc9d9c6a63e71ae9b613732ebbb91ed7e9c0e68e2a415ee4",
+      "description": "Предпросмотр v5 после горизонтальной прокрутки: склад, статус, СФ и операция",
+      "width": 1364,
+      "height": 718,
+      "fresh_capture": true,
       "unmodified": true
     }
-  ]
+  ],
+  "processor_version": 5,
+  "processor_sha256": "e51dc006c85fd6e7ec07c17be1418392348b6c5881387434c0f452fd49a41a6c",
+  "captured_at": "2026-10-29T08:47:07.122413+00:00",
+  "capture_method": "fresh native 1C client screenshots, no image modification",
+  "runtime_client": "8.5.1.1343 Thin",
+  "runtime_pid": 25572
 }

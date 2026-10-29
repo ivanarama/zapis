@@ -20,19 +20,49 @@
     "cssHeight": 1100
   },
   {
+    "source": "images/put-bp3-settings.png",
+    "alt": "1С, v5: настройки организаций и видов документов",
+    "caption": "Рисунок 3. 1С, v5: настройки организаций и видов документов",
+    "sha256": "bc3ee42b7801b595fd7c990369996096b22a1e2c853679a8c918464c884632f4",
+    "pixelWidth": 1364,
+    "pixelHeight": 718,
+    "cssWidth": 1364,
+    "cssHeight": 718
+  },
+  {
+    "source": "images/put-bp3-counterparties.png",
+    "alt": "1С, v5: сопоставления контрагентов, договоры, валюта и операция",
+    "caption": "Рисунок 4. 1С, v5: сопоставления контрагентов, договоры, валюта и операция",
+    "sha256": "4aa29ba15788f6f1bbd837781fa11070d982c6cbd51aa65519da72d228928db7",
+    "pixelWidth": 1364,
+    "pixelHeight": 718,
+    "cssWidth": 1364,
+    "cssHeight": 718
+  },
+  {
     "source": "images/put-bp3-preview.png",
-    "alt": "1С: предпросмотр повторного файла ПУТ и статусы документов",
-    "caption": "Рисунок 3. 1С: предпросмотр повторного файла ПУТ и статусы документов",
-    "sha256": "4a0dee1b7e3520e83d7a5f8a4a6f10800ebcf674eb5dc77ceff5da2ba8603889",
-    "pixelWidth": 935,
-    "pixelHeight": 720,
-    "cssWidth": 935,
-    "cssHeight": 720
+    "alt": "1С, v5: отдельный предпросмотр документов и складов",
+    "caption": "Рисунок 5. 1С, v5: отдельный предпросмотр документов и складов",
+    "sha256": "136dcaf130ff08e1a8dfab0fe8546e34338885016b8f192452379810d6b9c5cc",
+    "pixelWidth": 1364,
+    "pixelHeight": 718,
+    "cssWidth": 1364,
+    "cssHeight": 718
+  },
+  {
+    "source": "images/put-bp3-preview-details.png",
+    "alt": "1С, v5: склад, статус, СФ и хозяйственная операция в предпросмотре",
+    "caption": "Рисунок 6. 1С, v5: склад, статус, СФ и хозяйственная операция в предпросмотре",
+    "sha256": "3bed351522ad95c5bc9d9c6a63e71ae9b613732ebbb91ed7e9c0e68e2a415ee4",
+    "pixelWidth": 1364,
+    "pixelHeight": 718,
+    "cssWidth": 1364,
+    "cssHeight": 718
   },
   {
     "source": "images/flow.png",
     "alt": "Кадр схемы из собранного ролика",
-    "caption": "Рисунок 4. Кадр схемы из собранного ролика",
+    "caption": "Рисунок 7. Кадр схемы из собранного ролика",
     "sha256": "f398e7bf239665fde5bb6275e35554128e86af9a2b8050e31beda68c871e483a",
     "pixelWidth": 1280,
     "pixelHeight": 720,
@@ -42,7 +72,7 @@
   {
     "source": "images/result.png",
     "alt": "Результат сборки и история запусков в Zapis",
-    "caption": "Рисунок 5. Результат сборки и история запусков в Zapis",
+    "caption": "Рисунок 8. Результат сборки и история запусков в Zapis",
     "sha256": "088b6b621dd86038068f6d56d368be778c82e02cb5dc4ced96cceeb515f74d44",
     "pixelWidth": 2024,
     "pixelHeight": 1616,
